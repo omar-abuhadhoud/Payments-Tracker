@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 // import 'package:fl_chart/fl_chart.dart'; // Removed fl_chart import
 import 'package:payments_tracker_flutter/database/tables/transaction_table.dart';
-import 'package:payments_tracker_flutter/widgets/navigation_buttons.dart';
 import 'package:payments_tracker_flutter/global_variables/chosen_account.dart';
 import 'package:payments_tracker_flutter/widgets/daily_summary_card.dart';
 import 'package:payments_tracker_flutter/screens/daily_details_screen.dart';
 import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
+import 'package:payments_tracker_flutter/widgets/swipe_period_navigation.dart';
 
 import '../widgets/basic/safe_scaffold.dart';
 import '../widgets/monthly_or_daily_details_card.dart';
@@ -23,7 +23,6 @@ class MonthlySummaryScreen extends StatefulWidget {
 }
 
 class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
-
   List<DateTime> _availableMonths = [];
   int _currentMonthIndex = -1;
   List<Map<String, dynamic>> _selectedMonthChartData = [];
@@ -41,16 +40,22 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   }
 
   Future<void> _initializeScreenWithLoading() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     await _initializeScreen();
-    setState(() { _isLoading = false; });
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   Future<void> _initializeScreen() async {
     await _processAvailableMonths();
     final DateTime now = DateTime.now();
     // Find the index of the current system month (today's month) in _availableMonths
-    final int currentSystemMonthIndex = _availableMonths.indexWhere((month) => month.year == now.year && month.month == now.month);
+    final int currentSystemMonthIndex = _availableMonths.indexWhere(
+      (month) => month.year == now.year && month.month == now.month,
+    );
 
     // If the current month exists in our list of months with transactions...
     if (currentSystemMonthIndex != -1) {
@@ -80,15 +85,23 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   }
 
   Future<void> _processAvailableMonths() async {
-    final Set<DateTime> uniqueMonthsSet = await TransactionTable.getUniqueTransactionMonthsForAccount(ChosenAccount().account?.id);
+    final Set<DateTime> uniqueMonthsSet =
+        await TransactionTable.getUniqueTransactionMonthsForAccount(
+          ChosenAccount().account?.id,
+        );
     _availableMonths = uniqueMonthsSet.toList();
     _availableMonths.sort((a, b) => b.compareTo(a));
   }
 
   Future<void> _loadDataForSelectedMonth({bool showLoading = true}) async {
-    if (showLoading) setState(() { _isLoading = true; });
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
-    if (_currentMonthIndex < 0 || _currentMonthIndex >= _availableMonths.length) {
+    if (_currentMonthIndex < 0 ||
+        _currentMonthIndex >= _availableMonths.length) {
       setState(() {
         _selectedMonthChartData = [];
         _selectedMonthIncome = 0.0;
@@ -102,16 +115,25 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
 
     final DateTime selectedMonthDate = _availableMonths[_currentMonthIndex];
 
-    final List<Map<String, dynamic>> chartDataForeachDayOfSelectedMonth = await TransactionTable.getDailyNetWithCumulativeBalanceForMonth(ChosenAccount().account?.id, selectedMonthDate);
+    final List<Map<String, dynamic>> chartDataForeachDayOfSelectedMonth =
+        await TransactionTable.getDailyNetWithCumulativeBalanceForMonth(
+          ChosenAccount().account?.id,
+          selectedMonthDate,
+        );
 
-    final Map<String, double> monthlySummary = await TransactionTable.getMonthlySummary(selectedMonthDate,ChosenAccount().account?.id );
+    final Map<String, double> monthlySummary =
+        await TransactionTable.getMonthlySummary(
+          selectedMonthDate,
+          ChosenAccount().account?.id,
+        );
 
     setState(() {
       _selectedMonthChartData = chartDataForeachDayOfSelectedMonth;
       _selectedMonthIncome = monthlySummary['income'] ?? 0.0;
       _selectedMonthExpense = monthlySummary['expense'] ?? 0.0;
-      _selectedMonthNet = _selectedMonthIncome-_selectedMonthExpense;
-      _overallBalanceAtEndOfSelectedMonth = monthlySummary['overallBalance']??0;
+      _selectedMonthNet = _selectedMonthIncome - _selectedMonthExpense;
+      _overallBalanceAtEndOfSelectedMonth =
+          monthlySummary['overallBalance'] ?? 0;
       if (showLoading) _isLoading = false;
     });
   }
@@ -126,8 +148,11 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   }
 
   Future<void> _goToNextMonth() async {
-    if (_currentMonthIndex > 0) { // 'Newer' month means a lower index
-      setState(() { _currentMonthIndex--; });
+    if (_currentMonthIndex > 0) {
+      // 'Newer' month means a lower index
+      setState(() {
+        _currentMonthIndex--;
+      });
       await _loadDataForSelectedMonth();
     }
   }
@@ -135,7 +160,9 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   Future<void> _goToCurrentMonth() async {
     // Find the index of the current system month (today's month) in _availableMonths
     final DateTime now = DateTime.now();
-    final int currentSystemMonthIndex = _availableMonths.indexWhere((month) => month.year == now.year && month.month == now.month);
+    final int currentSystemMonthIndex = _availableMonths.indexWhere(
+      (month) => month.year == now.year && month.month == now.month,
+    );
     // If the current month is not found, we want to show a "no data" state for this month.
     if (currentSystemMonthIndex == -1) {
       // Even if the month is not in the list (no transactions), we still want to show its summary.
@@ -144,16 +171,23 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
         _currentMonthIndex = -1; // Indicates no month is selected
       });
       // Manually calculate summary for the current month since it's not in our list.
-      final Map<String, double> monthlySummary = await TransactionTable.getMonthlySummary(now,ChosenAccount().account?.id );
+      final Map<String, double> monthlySummary =
+          await TransactionTable.getMonthlySummary(
+            now,
+            ChosenAccount().account?.id,
+          );
       setState(() {
         _selectedMonthChartData = []; // No transactions this month
         _selectedMonthIncome = monthlySummary['income'] ?? 0.0;
         _selectedMonthExpense = monthlySummary['expense'] ?? 0.0;
         _selectedMonthNet = (_selectedMonthIncome) - (_selectedMonthExpense);
-        _overallBalanceAtEndOfSelectedMonth = monthlySummary['overallBalance'] ?? 0.0;
+        _overallBalanceAtEndOfSelectedMonth =
+            monthlySummary['overallBalance'] ?? 0.0;
       });
     } else {
-      setState(() { _currentMonthIndex = currentSystemMonthIndex; });
+      setState(() {
+        _currentMonthIndex = currentSystemMonthIndex;
+      });
       await _loadDataForSelectedMonth();
     }
   }
@@ -171,16 +205,18 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
       }
       monthsByYear[month.year]!.add(month);
     }
-    final List<int> years = monthsByYear.keys.toList()..sort((a, b) => b.compareTo(a));
+    final List<int> years = monthsByYear.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
 
     final int? selectedIndex = await showDialog<int>(
       context: context,
       builder: (context) {
         return _YearMonthPicker(
-            years: years,
-            monthsByYear: monthsByYear,
-            availableMonths: _availableMonths,
-            currentMonthIndex: _currentMonthIndex);
+          years: years,
+          monthsByYear: monthsByYear,
+          availableMonths: _availableMonths,
+          currentMonthIndex: _currentMonthIndex,
+        );
       },
     );
 
@@ -195,12 +231,17 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
     }
   }
 
-  String get _formattedCurrentMonth {
-    if (_currentMonthIndex < 0 || _currentMonthIndex >= _availableMonths.length) {
-      return "No data";
+  DateTime get _displayedMonthDate {
+    if (_currentMonthIndex >= 0 &&
+        _currentMonthIndex < _availableMonths.length) {
+      return _availableMonths[_currentMonthIndex];
     }
-    return DateFormat.yMMMM().format(_availableMonths[_currentMonthIndex]);
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
   }
+
+  String get _formattedDisplayedMonth =>
+      DateFormat.yMMMM().format(_displayedMonthDate);
 
   bool _isCurrentMonthDisplayed() {
     if (_availableMonths.isEmpty || _currentMonthIndex < 0) {
@@ -208,7 +249,9 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
       // Or, if there are no transactions at all, the "Current" button might point to the non-existent current month.
       // A check to see if any month in the list is the current month is also useful.
       final now = DateTime.now();
-      return !_availableMonths.any((month) => month.year == now.year && month.month == now.month);
+      return !_availableMonths.any(
+        (month) => month.year == now.year && month.month == now.month,
+      );
     }
     final DateTime now = DateTime.now();
     final DateTime displayedMonth = _availableMonths[_currentMonthIndex];
@@ -435,12 +478,19 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   }
   */
 
-  Widget _dailyTransactionCard(Map<String, dynamic> data, DateTime currentMonthDateTime) {
+  Widget _dailyTransactionCard(
+    Map<String, dynamic> data,
+    DateTime currentMonthDateTime,
+  ) {
     final dayNumber = data['dayNumber'] as int;
     final dailyNet = data['dailyNet'] as double;
     final cumulativeBalance = data['cumulativeBalance'] as double;
 
-    final DateTime specificDate = DateTime(currentMonthDateTime.year, currentMonthDateTime.month, dayNumber);
+    final DateTime specificDate = DateTime(
+      currentMonthDateTime.year,
+      currentMonthDateTime.month,
+      dayNumber,
+    );
 
     return Card(
       elevation: 2,
@@ -476,7 +526,9 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.purple.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.purple.withOpacity(0.18)),
+                      border: Border.all(
+                        color: AppColors.purple.withOpacity(0.18),
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -502,8 +554,11 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
                       ),
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios,
-                      size: 16, color: AppColors.purple.withOpacity(0.4)),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: AppColors.purple.withOpacity(0.4),
+                  ),
                 ],
               ),
 
@@ -516,19 +571,25 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
                 children: [
                   // Net pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: (dailyNet >= 0
-                          ? AppColors.greyishGreen
-                          : AppColors.greyishRed)
-                          .withOpacity(0.12),
+                      color:
+                          (dailyNet >= 0
+                                  ? AppColors.greyishGreen
+                                  : AppColors.greyishRed)
+                              .withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          dailyNet >= 0 ? Icons.trending_up : Icons.trending_down,
+                          dailyNet >= 0
+                              ? Icons.trending_up
+                              : Icons.trending_down,
                           size: 18,
                           color: dailyNet >= 0
                               ? AppColors.greyishGreen
@@ -551,12 +612,16 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
 
                   // Balance pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: (cumulativeBalance >= 0
-                          ? AppColors.greyishGreen
-                          : AppColors.greyishRed)
-                          .withOpacity(0.08),
+                      color:
+                          (cumulativeBalance >= 0
+                                  ? AppColors.greyishGreen
+                                  : AppColors.greyishRed)
+                              .withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -592,17 +657,22 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
         ),
       ),
     );
-
   }
 
   Widget _buildDailyTransactionCards() {
-    if (_currentMonthIndex < 0 || _currentMonthIndex >= _availableMonths.length) {
-      return const Center(child: Text("Select a month to see daily transactions."));
+    if (_currentMonthIndex < 0 ||
+        _currentMonthIndex >= _availableMonths.length) {
+      return const Center(
+        child: Text("Select a month to see daily transactions."),
+      );
     }
 
-    final List<Map<String, dynamic>> daysWithTransactions = _selectedMonthChartData
-        .where((data) => data['dailyNet'] != null && data['dailyNet'] != 0.0)
-        .toList();
+    final List<Map<String, dynamic>> daysWithTransactions =
+        _selectedMonthChartData
+            .where(
+              (data) => data['dailyNet'] != null && data['dailyNet'] != 0.0,
+            )
+            .toList();
 
     if (daysWithTransactions.isEmpty) {
       return Center(
@@ -611,8 +681,11 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.calendar_today_outlined,
-                  size: 50, color: AppColors.purple.withOpacity(0.2)),
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 50,
+                color: AppColors.purple.withOpacity(0.2),
+              ),
               const SizedBox(height: 10),
               Text(
                 'No transactions recorded for this month.',
@@ -631,11 +704,16 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
     final DateTime currentMonthDateTime = _availableMonths[_currentMonthIndex];
 
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 112),
       itemCount: daysWithTransactions.length,
       itemBuilder: (context, index) {
         final data = daysWithTransactions[index];
         return DailySummaryCard(
-          specificDate: DateTime(currentMonthDateTime.year, currentMonthDateTime.month, data['dayNumber'] as int),
+          specificDate: DateTime(
+            currentMonthDateTime.year,
+            currentMonthDateTime.month,
+            data['dayNumber'] as int,
+          ),
           dailyNet: data['dailyNet'] as double,
           cumulativeBalance: data['cumulativeBalance'] as double,
         );
@@ -646,51 +724,50 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeScaffold(
-      appBar: AppBar(
-        title: const Text('Monthly Summary'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: _availableMonths.isEmpty ? null : () async => await _openMonthPicker(),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(4.0),
-        child: Column(
-          children: [
-
-            const SizedBox(height: 10),
-            MonthlyOrDailyDetailsCard(
-              isMonthly: true,
-              selectedDateTime: (_currentMonthIndex >= 0 && _currentMonthIndex < _availableMonths.length)
-                  ? _availableMonths[_currentMonthIndex]
-                  : DateTime.now(), // Fallback for no data
-              income: _selectedMonthIncome,
-              expense: _selectedMonthExpense,
-              overallBalanceEndOfMonthOrDay: _overallBalanceAtEndOfSelectedMonth,
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-
+      appBar: AppBar(title: const Text('Monthly Summary'), centerTitle: true),
+      body: SwipePeriodNavigation(
+        label: _formattedDisplayedMonth,
+        isLoading: _isLoading,
+        canGoOlder: _canGoToOlder(),
+        canGoNewer: _canGoToNewer(),
+        isCurrent: _isCurrentMonthDisplayed(),
+        onGoOlder: () {
+          _goToPreviousMonth();
+        },
+        onGoNewer: () {
+          _goToNextMonth();
+        },
+        onGoCurrent: () {
+          _goToCurrentMonth();
+        },
+        onPickPeriod: _availableMonths.isEmpty
+            ? null
+            : () {
+                _openMonthPicker();
+              },
+        currentTooltip: 'Current month',
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              MonthlyOrDailyDetailsCard(
+                isMonthly: true,
+                selectedDateTime: _displayedMonthDate,
+                income: _selectedMonthIncome,
+                expense: _selectedMonthExpense,
+                overallBalanceEndOfMonthOrDay:
+                    _overallBalanceAtEndOfSelectedMonth,
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
                   child: _buildDailyTransactionCards(),
                 ),
               ),
-            ),
-            NavigationButtons(
-              canGoToOlder: _canGoToOlder(),
-              canGoToNewer: _canGoToNewer(),
-              isCurrent: _isCurrentMonthDisplayed(),
-              onOlderPressed: _goToPreviousMonth,
-              onNewerPressed: _goToNextMonth,
-              onCurrentPressed: _goToCurrentMonth,
-              isLoading: _isLoading,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -754,7 +831,11 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_selectedYear == null ? 'Select Year' : 'Select Month for $_selectedYear'),
+      title: Text(
+        _selectedYear == null
+            ? 'Select Year'
+            : 'Select Month for $_selectedYear',
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
       content: SizedBox(
         width: double.maxFinite,
@@ -767,9 +848,13 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
                 onChanged: (value) => setState(() => _searchText = value),
                 decoration: InputDecoration(
                   labelText: 'Search',
-                  hintText: _selectedYear == null ? 'Search Year...' : 'Search Month...',
+                  hintText: _selectedYear == null
+                      ? 'Search Year...'
+                      : 'Search Month...',
                   prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
               ),
@@ -807,7 +892,8 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
         itemCount: filteredYears.length,
         itemBuilder: (context, index) {
           final year = filteredYears[index];
-          final isSelected = widget.availableMonths.isNotEmpty &&
+          final isSelected =
+              widget.availableMonths.isNotEmpty &&
               widget.currentMonthIndex != -1 &&
               widget.availableMonths[widget.currentMonthIndex].year == year;
 
@@ -824,10 +910,12 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
   Widget _buildMonthList(int year) {
     final months = widget.monthsByYear[year] ?? [];
     final filteredMonths = months
-        .where((month) => DateFormat.MMMM()
-            .format(month)
-            .toLowerCase()
-            .contains(_searchText.toLowerCase()))
+        .where(
+          (month) => DateFormat.MMMM()
+              .format(month)
+              .toLowerCase()
+              .contains(_searchText.toLowerCase()),
+        )
         .toList();
 
     return Flexible(
@@ -853,4 +941,3 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
     );
   }
 }
-

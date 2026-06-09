@@ -6,7 +6,7 @@ import 'package:payments_tracker_flutter/widgets/transaction_info_card.dart';
 import 'package:payments_tracker_flutter/screens/add_edit_transaction_screen.dart'; // For TransactionType
 import 'package:payments_tracker_flutter/models/transaction_model.dart';
 import 'package:payments_tracker_flutter/database/tables/transaction_table.dart';
-import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
+import 'package:payments_tracker_flutter/widgets/swipe_period_navigation.dart';
 
 import '../widgets/basic/safe_scaffold.dart'; // Import AccountTable
 
@@ -271,92 +271,6 @@ class _TransactionsLogScreenState extends State<TransactionsLogScreen> {
         );
   }
 
-  void _handleHorizontalSwipe(DragEndDetails details, bool isLoading) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() < 280) return;
-
-    if (velocity < 0 && _canGoToOlder(isLoading)) {
-      _goToOlderDay();
-    } else if (velocity > 0 && _canGoToNewer(isLoading)) {
-      _goToNewerDay();
-    }
-  }
-
-  Widget _buildBottomControls({
-    required String formattedDate,
-    required bool isLoading,
-  }) {
-    final isCurrent = _currentDisplayedDate.isAtSameMomentAs(_today);
-    final canPickDate = _sortedDaysWithTransactions.isNotEmpty && !isLoading;
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-        child: Material(
-          color: Colors.white,
-          elevation: 10,
-          shadowColor: AppColors.purple.withValues(alpha: .14),
-          borderRadius: BorderRadius.circular(24),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppColors.purple.withValues(alpha: .10),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.chevron_left,
-                  color: _canGoToNewer(isLoading)
-                      ? AppColors.purple.withValues(alpha: .42)
-                      : AppColors.purple.withValues(alpha: .14),
-                ),
-                Expanded(
-                  child: TextButton.icon(
-                    onPressed: canPickDate ? _openDatePicker : null,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(
-                      formattedDate,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.purple,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: _canGoToOlder(isLoading)
-                      ? AppColors.purple.withValues(alpha: .42)
-                      : AppColors.purple.withValues(alpha: .14),
-                ),
-                const SizedBox(width: 6),
-                Tooltip(
-                  message: 'Current day',
-                  child: IconButton.filledTonal(
-                    onPressed: isLoading || isCurrent ? null : _goToToday,
-                    icon: const Icon(Icons.today_outlined),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     String formattedDate = DateFormat(
@@ -365,124 +279,110 @@ class _TransactionsLogScreenState extends State<TransactionsLogScreen> {
 
     return SafeScaffold(
       appBar: AppBar(title: const Text('Transactions Log'), centerTitle: true),
-      body: Stack(
-        children: [
-          FutureBuilder<void>(
-            future: _dataLoadingFuture,
-            builder: (context, snapshot) {
-              bool isLoadingSnapshot =
-                  snapshot.connectionState == ConnectionState.waiting;
+      body: FutureBuilder<void>(
+        future: _dataLoadingFuture,
+        builder: (context, snapshot) {
+          final isLoadingSnapshot =
+              snapshot.connectionState == ConnectionState.waiting;
 
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return Center(
-                  child: Text('Error loading transactions: ${snapshot.error}'),
-                );
-              }
+          Widget content;
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            content = const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            content = Center(
+              child: Text('Error loading transactions: ${snapshot.error}'),
+            );
+          } else if (_transactionsWithBalances.isEmpty) {
+            content = Center(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+                child: Text(
+                  'No transactions for $formattedDate.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          } else {
+            content = ListView.builder(
+              padding: const EdgeInsets.fromLTRB(0, 6, 0, 112),
+              itemCount: _transactionsWithBalances.length,
+              itemBuilder: (context, index) {
+                final transactionWithBalance = _transactionsWithBalances[index];
+                final transaction = transactionWithBalance.transaction;
 
-              return GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onHorizontalDragEnd: (details) =>
-                    _handleHorizontalSwipe(details, isLoadingSnapshot),
-                child: _transactionsWithBalances.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
-                          child: Text(
-                            'No transactions for $formattedDate.',
-                            textAlign: TextAlign.center,
-                          ),
+                return TransactionInfoCard(
+                  transaction: transaction,
+                  balance: transactionWithBalance.balance,
+                  todayDate: _today,
+                  onEditPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddEditTransactionScreen(
+                          transactionToEdit: transaction,
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(0, 6, 0, 112),
-                        itemCount: _transactionsWithBalances.length,
-                        itemBuilder: (context, index) {
-                          final transactionWithBalance =
-                              _transactionsWithBalances[index];
-                          final transaction =
-                              transactionWithBalance.transaction;
-
-                          return TransactionInfoCard(
-                            transaction: transaction,
-                            balance: transactionWithBalance.balance,
-                            todayDate: _today,
-                            onEditPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      AddEditTransactionScreen(
-                                        transactionToEdit: transaction,
-                                      ),
-                                ),
-                              );
-                              if (result == true) {
-                                _triggerDataLoad(_currentDisplayedDate);
-                              }
-                            },
-                            onDeletePressed: () async {
-                              final confirmDelete = await showDialog<bool>(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: const Text('Confirm Delete'),
-                                    content: const Text(
-                                      'Are you sure you want to delete this transaction?',
-                                    ),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        child: const Text('Cancel'),
-                                        onPressed: () {
-                                          Navigator.of(context).pop(false);
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: const Text('Delete'),
-                                        onPressed: () {
-                                          Navigator.of(context).pop(true);
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-
-                              if (confirmDelete == true &&
-                                  transaction.id != null) {
-                                await TransactionTable.deleteTransaction(
-                                  transaction.id!,
-                                );
-                                _triggerDataLoad(
-                                  _currentDisplayedDate,
-                                  refreshSortedDays: true,
-                                );
-                              }
-                            },
-                          );
-                        },
                       ),
-              );
-            },
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: FutureBuilder<void>(
-              future: _dataLoadingFuture,
-              builder: (context, snapshot) {
-                bool isLoadingSnapshot =
-                    snapshot.connectionState == ConnectionState.waiting;
-                return _buildBottomControls(
-                  formattedDate: formattedDate,
-                  isLoading: isLoadingSnapshot,
+                    );
+                    if (result == true) {
+                      _triggerDataLoad(_currentDisplayedDate);
+                    }
+                  },
+                  onDeletePressed: () async {
+                    final confirmDelete = await showDialog<bool>(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Confirm Delete'),
+                          content: const Text(
+                            'Are you sure you want to delete this transaction?',
+                          ),
+                          actions: <Widget>[
+                            TextButton(
+                              child: const Text('Cancel'),
+                              onPressed: () {
+                                Navigator.of(context).pop(false);
+                              },
+                            ),
+                            TextButton(
+                              child: const Text('Delete'),
+                              onPressed: () {
+                                Navigator.of(context).pop(true);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmDelete == true && transaction.id != null) {
+                      await TransactionTable.deleteTransaction(transaction.id!);
+                      _triggerDataLoad(
+                        _currentDisplayedDate,
+                        refreshSortedDays: true,
+                      );
+                    }
+                  },
                 );
               },
-            ),
-          ),
-        ],
+            );
+          }
+
+          return SwipePeriodNavigation(
+            label: formattedDate,
+            isLoading: isLoadingSnapshot,
+            canGoOlder: _canGoToOlder(isLoadingSnapshot),
+            canGoNewer: _canGoToNewer(isLoadingSnapshot),
+            isCurrent: _currentDisplayedDate.isAtSameMomentAs(_today),
+            onGoOlder: _goToOlderDay,
+            onGoNewer: _goToNewerDay,
+            onGoCurrent: _goToToday,
+            onPickPeriod: _sortedDaysWithTransactions.isEmpty
+                ? null
+                : _openDatePicker,
+            currentTooltip: 'Current day',
+            child: content,
+          );
+        },
       ),
     );
   }

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:payments_tracker_flutter/models/account_model.dart'; // Assuming AccountModel has 'name' and 'balance'
 import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
 import 'package:payments_tracker_flutter/widgets/basic/basic_card.dart';
 import 'package:payments_tracker_flutter/widgets/utility.dart';
-
 
 class AccountCard extends StatelessWidget {
   final AccountModel account;
@@ -14,79 +12,90 @@ class AccountCard extends StatelessWidget {
   final VoidCallback onDeletePressed; // New callback for delete
 
   const AccountCard({
-    Key? key,
+    super.key,
     required this.balance,
     required this.account,
     required this.onTap,
     required this.onEditPressed, // Make it required
     required this.onDeletePressed, // Make it required
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bool isPositive = balance >= 0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 340;
+        final avatarRadius = isCompact ? 20.0 : 24.0;
+        final horizontalGap = isCompact ? 10.0 : 16.0;
+        final cardPadding = isCompact ? 12.0 : 18.0;
 
-    return BasicCard(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Row(
-          children: [
-            // Icon for the account
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.subtlePurple.withOpacity(0.12),
-              child: const Icon(
-                Icons.person, // Example icon
-                color: AppColors.purple,
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // Account name and balance
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center, // center vertically
-                children: [
-                  Text(
-                    account.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.purple,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+        return BasicCard(
+          margin: EdgeInsets.symmetric(
+            horizontal: isCompact ? 12 : 20,
+            vertical: 10,
+          ),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.all(cardPadding),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: avatarRadius,
+                  backgroundColor: AppColors.subtlePurple.withValues(
+                    alpha: 0.12,
                   ),
-                  const SizedBox(height: 8),
-
-                  Utility.handleNumberAppearanceForOverflow(number: balance,
-                      color:balance >= 0
-                      ? AppColors.greyishGreen
-                      : AppColors.greyishRed
-                      , fontSize: 11),
-
-                ],
-              ),
+                  child: const Icon(Icons.person, color: AppColors.purple),
+                ),
+                SizedBox(width: horizontalGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        account.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.purple,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Utility.handleNumberAppearanceForOverflow(
+                        number: balance,
+                        color: balance >= 0
+                            ? AppColors.greyishGreen
+                            : AppColors.greyishRed,
+                        fontSize: 11,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: isCompact ? 4 : 8),
+                IconButton(
+                  constraints: const BoxConstraints(
+                    minHeight: 40,
+                    minWidth: 40,
+                  ),
+                  icon: const Icon(Icons.edit, color: AppColors.purple),
+                  onPressed: onEditPressed,
+                  tooltip: 'Edit Account',
+                ),
+                IconButton(
+                  constraints: const BoxConstraints(
+                    minHeight: 40,
+                    minWidth: 40,
+                  ),
+                  icon: const Icon(Icons.delete, color: AppColors.expenseRed),
+                  onPressed: onDeletePressed,
+                  tooltip: 'Delete Account',
+                ),
+              ],
             ),
-
-            // Edit button
-            IconButton(
-              icon: const Icon(Icons.edit, color: AppColors.purple),
-              onPressed: onEditPressed,
-              tooltip: 'Edit Account',
-            ),
-
-            // Delete button
-            IconButton(
-              icon: const Icon(Icons.delete, color: AppColors.expenseRed),
-              onPressed: onDeletePressed,
-              tooltip: 'Delete Account',
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
-
   }
 }

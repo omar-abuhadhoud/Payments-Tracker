@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:payments_tracker_flutter/global_variables/chosen_account.dart';
-import 'package:payments_tracker_flutter/widgets/monthly_or_daily_details_card.dart';
 import 'package:payments_tracker_flutter/widgets/utility.dart';
 
 import '../widgets/basic/safe_scaffold.dart';
@@ -18,30 +17,28 @@ class AccountMainScreen extends StatefulWidget {
 }
 
 class _AccountMainScreenState extends State<AccountMainScreen> {
-  late Future<Map<String, double>> _monthlySummaryFuture;
-  Map<String, double>? _lastSummary; // cache last good data
-  DateTime selectedMonthDate = DateTime.now();
+  late Future<double> _accountBalanceFuture;
+  double? _lastBalance; // cache last good data
 
   @override
   void initState() {
     super.initState();
-    _loadMonthlySummary();
+    _loadAccountBalance();
   }
 
-  void _loadMonthlySummary() => _refreshMonthlySummary();
+  void _loadAccountBalance() => _refreshAccountBalance();
 
-  void _refreshMonthlySummary() {
+  void _refreshAccountBalance() {
     final accountId = ChosenAccount().account?.id;
-    final future =
-        TransactionTable.getMonthlySummary(selectedMonthDate, accountId).then((
-          data,
-        ) {
-          _lastSummary = data; // keep cached copy
-          return data;
-        });
+    final future = TransactionTable.getTotalBalanceForAccount(accountId).then((
+      balance,
+    ) {
+      _lastBalance = balance; // keep cached copy
+      return balance;
+    });
 
     setState(() {
-      _monthlySummaryFuture = future;
+      _accountBalanceFuture = future;
     });
   }
 
@@ -50,195 +47,93 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
-    _loadMonthlySummary();
+    _loadAccountBalance();
   }
 
-  Widget _buildSummaryHeader(Map<String, double> data) {
-    final balance = data['overallBalance'] ?? 0.0;
-    final income = data['income'] ?? 0.0;
-    final expense = data['expense'] ?? 0.0;
+  Widget _buildBalancePanel(double balance) {
     final balanceColor = balance >= 0
         ? AppColors.incomeGreen
         : AppColors.expenseRed;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
         color: AppColors.offWhite,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.purple.withValues(alpha: .10)),
         boxShadow: [
           BoxShadow(
             color: AppColors.purple.withValues(alpha: .08),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: BoxDecoration(
-                  color: balanceColor.withValues(alpha: .10),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: balanceColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Overall Balance',
-                      style: TextStyle(
-                        color: AppColors.purple.withValues(alpha: .72),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Utility.handleNumberAppearanceForOverflow(
-                      number: balance,
-                      color: balanceColor,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricPill(
-                  label: 'Income',
-                  value: income,
-                  color: AppColors.incomeGreen,
-                  icon: Icons.arrow_upward,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildMetricPill(
-                  label: 'Expense',
-                  value: expense,
-                  color: AppColors.expenseRed,
-                  icon: Icons.arrow_downward,
-                ),
-              ),
-            ],
+          Container(
+            height: 58,
+            width: 58,
+            decoration: BoxDecoration(
+              color: balanceColor.withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              Icons.account_balance_wallet_outlined,
+              color: balanceColor,
+              size: 29,
+            ),
           ),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 360;
-              final actions = [
-                _DashboardAction(
-                  label: 'Add',
-                  icon: Icons.add_circle_outline,
-                  isPrimary: true,
-                  onPressed: () =>
-                      _openScreen(const AddEditTransactionScreen()),
-                ),
-                _DashboardAction(
-                  label: 'Log',
-                  icon: Icons.list_alt_outlined,
-                  onPressed: () => _openScreen(const TransactionsLogScreen()),
-                ),
-                _DashboardAction(
-                  label: 'Monthly',
-                  icon: Icons.calendar_month,
-                  onPressed: () => _openScreen(const MonthlySummaryScreen()),
-                ),
-              ];
-
-              if (isNarrow) {
-                return Column(
-                  children: actions
-                      .map(
-                        (action) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _buildActionTile(action),
-                        ),
-                      )
-                      .toList(),
-                );
-              }
-
-              return Row(
-                children: actions
-                    .map(
-                      (action) => Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            right: action == actions.last ? 0 : 10,
-                          ),
-                          child: _buildActionTile(action),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
+          Text(
+            'Overall Balance',
+            style: TextStyle(
+              color: AppColors.purple.withValues(alpha: .68),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Utility.handleNumberAppearanceForOverflow(
+            number: balance,
+            color: balanceColor,
+            fontSize: 33,
+            fontWeight: FontWeight.w900,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetricPill({
-    required String label,
-    required double value,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .72),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: .12)),
+  Widget _buildActionSection() {
+    final actions = [
+      _DashboardAction(
+        label: 'Add',
+        icon: Icons.add_circle_outline,
+        isPrimary: true,
+        onPressed: () => _openScreen(const AddEditTransactionScreen()),
       ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: AppColors.purple.withValues(alpha: .62),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Utility.handleNumberAppearanceForOverflow(
-                  number: value,
-                  color: color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ],
-            ),
-          ),
-        ],
+      _DashboardAction(
+        label: 'Log',
+        icon: Icons.list_alt_outlined,
+        onPressed: () => _openScreen(const TransactionsLogScreen()),
       ),
+      _DashboardAction(
+        label: 'Monthly',
+        icon: Icons.calendar_month,
+        onPressed: () => _openScreen(const MonthlySummaryScreen()),
+      ),
+    ];
+
+    return Column(
+      children: [
+        _buildActionTile(actions[0]),
+        const SizedBox(height: 18),
+        _buildActionTile(actions[1]),
+        const SizedBox(height: 18),
+        _buildActionTile(actions[2]),
+      ],
     );
   }
 
@@ -253,8 +148,8 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
         borderRadius: BorderRadius.circular(18),
         onTap: action.onPressed,
         child: Container(
-          height: 58,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: action.isPrimary ? 64 : 60,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
@@ -266,7 +161,11 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(action.icon, color: foreground, size: 21),
+              Icon(
+                action.icon,
+                color: foreground,
+                size: action.isPrimary ? 23 : 21,
+              ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -298,39 +197,28 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
         title: Text(accountName),
         centerTitle: true,
       ),
-      body: FutureBuilder<Map<String, double>>(
-        future: _monthlySummaryFuture,
+      body: FutureBuilder<double>(
+        future: _accountBalanceFuture,
         builder: (context, snapshot) {
           final hasLive = snapshot.hasData;
-          final data = hasLive ? snapshot.data! : (_lastSummary ?? {});
+          final balance = hasLive ? snapshot.data! : _lastBalance;
 
-          if (!hasLive && _lastSummary == null) {
+          if (balance == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final income = data['income'] ?? 0.0;
-          final expense = data['expense'] ?? 0.0;
-          final overallBalance = data['overallBalance'] ?? 0.0;
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 22),
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: _buildSummaryHeader(data),
-              ),
-              const SizedBox(height: 14),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: MonthlyOrDailyDetailsCard(
-                  selectedDateTime: selectedMonthDate,
-                  income: income,
-                  expense: expense,
-                  overallBalanceEndOfMonthOrDay: overallBalance,
-                  isMonthly: true,
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            child: Column(
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: _buildBalancePanel(balance),
                 ),
-              ),
-            ],
+                const SizedBox(height: 32),
+                _buildActionSection(),
+              ],
+            ),
           );
         },
       ),

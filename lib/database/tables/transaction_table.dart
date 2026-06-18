@@ -1,9 +1,3 @@
-
-
-
-
-
-import 'package:sqflite/sqflite.dart';
 import 'package:payments_tracker_flutter/models/transaction_model.dart';
 import '../database_helper.dart';
 import 'package:intl/intl.dart';
@@ -20,7 +14,10 @@ class TransactionTable {
   }
 
   /// Get all unique month and year combinations that have transactions for a specific account.
-  static Future<Set<DateTime>> getUniqueTransactionMonthsForAccount(int? accountId, {bool descending = true}) async {
+  static Future<Set<DateTime>> getUniqueTransactionMonthsForAccount(
+    int? accountId, {
+    bool descending = true,
+  }) async {
     final db = await DatabaseHelper.instance.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery(
       '''
@@ -40,7 +37,6 @@ class TransactionTable {
     }).toSet();
   }
 
-
   /// Get all transactions (ordered by newest first)
   static Future<List<TransactionModel>> getAllTransactions() async {
     final db = await DatabaseHelper.instance.database;
@@ -48,7 +44,10 @@ class TransactionTable {
     return result.map((row) => TransactionModel.fromMap(row)).toList();
   }
 
-  static Future<Map<String, double>> getMonthlySummary(DateTime date,int? accountId) async {
+  static Future<Map<String, double>> getMonthlySummary(
+    DateTime date,
+    int? accountId,
+  ) async {
     if (accountId == null) {
       return {'income': 0.0, 'expense': 0.0, 'overallBalance': 0.0};
     }
@@ -57,29 +56,32 @@ class TransactionTable {
 
     // Month boundaries
     final monthStart = DateTime(date.year, date.month, 1, 0, 0, 0);
-    final monthEnd   = DateTime(date.year, date.month + 1, 0, 23, 59, 59);
+    final monthEnd = DateTime(date.year, date.month + 1, 0, 23, 59, 59);
 
     // Format compatible with SQLite datetime()
     String fmt(DateTime dt) => DateFormat('yyyy-MM-dd HH:mm:ss').format(dt);
 
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
     SELECT
       SUM(CASE WHEN amount > 0 AND datetime(createdAt) BETWEEN datetime(?) AND datetime(?) THEN amount ELSE 0 END) AS totalIncome,
       SUM(CASE WHEN amount < 0 AND datetime(createdAt) BETWEEN datetime(?) AND datetime(?) THEN amount ELSE 0 END) AS totalExpense,
       SUM(CASE WHEN datetime(createdAt) <= datetime(?) THEN amount ELSE 0 END) AS totalBalance
     FROM $table
     WHERE accountId = ?
-  ''', [
-      fmt(monthStart), fmt(monthEnd),   // for income
-      fmt(monthStart), fmt(monthEnd),   // for expense
-      fmt(monthEnd),
-      accountId,
-    ]);
+  ''',
+      [
+        fmt(monthStart), fmt(monthEnd), // for income
+        fmt(monthStart), fmt(monthEnd), // for expense
+        fmt(monthEnd),
+        accountId,
+      ],
+    );
 
     double income = 0.0, expense = 0.0, overall = 0.0;
-    if (rows.isNotEmpty && rows.first != null) {
+    if (rows.isNotEmpty) {
       final r = rows.first;
-      income  = (r['totalIncome']  as num?)?.toDouble() ?? 0.0;
+      income = (r['totalIncome'] as num?)?.toDouble() ?? 0.0;
       expense = ((r['totalExpense'] as num?)?.toDouble() ?? 0.0).abs();
       overall = (r['totalBalance'] as num?)?.toDouble() ?? 0.0;
     }
@@ -87,8 +89,11 @@ class TransactionTable {
     return {'income': income, 'expense': expense, 'overallBalance': overall};
   }
 
-
-  static Future<List<Map<String, dynamic>>> getDailyNetWithCumulativeBalanceForMonth(int? accountId, DateTime date) async {
+  static Future<List<Map<String, dynamic>>>
+  getDailyNetWithCumulativeBalanceForMonth(
+    int? accountId,
+    DateTime date,
+  ) async {
     final db = await DatabaseHelper.instance.database;
     final year = date.year;
     final month = date.month;
@@ -99,17 +104,24 @@ class TransactionTable {
 
     // Get the balance from the beginning of time until the start of the current month
     final firstDayOfMonth = DateTime(year, month, 1);
-    final balanceBeforeMonthResult = await db.rawQuery('''
+    final balanceBeforeMonthResult = await db.rawQuery(
+      '''
       SELECT SUM(amount) as balance
       FROM $table
       WHERE accountId = ? AND createdAt < ?
-    ''', [accountId, firstDayOfMonth.toIso8601String()]);
+    ''',
+      [accountId, firstDayOfMonth.toIso8601String()],
+    );
 
-    if (balanceBeforeMonthResult.isNotEmpty && balanceBeforeMonthResult.first['balance'] != null) {
-      cumulativeBalance = (balanceBeforeMonthResult.first['balance'] as num?)?.toDouble() ?? 0.0;
+    if (balanceBeforeMonthResult.isNotEmpty &&
+        balanceBeforeMonthResult.first['balance'] != null) {
+      cumulativeBalance =
+          (balanceBeforeMonthResult.first['balance'] as num?)?.toDouble() ??
+          0.0;
     }
 
-    final result = await db.rawQuery('''
+    final result = await db.rawQuery(
+      '''
       WITH DailySums AS (
         SELECT 
           CAST(strftime('%d', createdAt) AS INTEGER) as dayNumber,
@@ -124,24 +136,27 @@ class TransactionTable {
         ? + SUM(ds.dailyNet) OVER (ORDER BY ds.dayNumber ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as cumulativeBalance
       FROM DailySums ds
       ORDER BY ds.dayNumber ASC
-    ''', [accountId, yearString, monthString, cumulativeBalance]);
+    ''',
+      [accountId, yearString, monthString, cumulativeBalance],
+    );
 
     return result.map((row) {
       return {
         'dayNumber': row['dayNumber'] as int,
         'dailyNet': (row['dailyNet'] as num?)?.toDouble() ?? 0.0,
-        'cumulativeBalance': (row['cumulativeBalance'] as num?)?.toDouble() ?? 0.0,
+        'cumulativeBalance':
+            (row['cumulativeBalance'] as num?)?.toDouble() ?? 0.0,
       };
     }).toList();
   }
 
-
-
-
-
   static Future<int> getTransactionsCountForAccount(int? accountId) async {
     final db = await DatabaseHelper.instance.database;
-    final result = await db.query(table, where: 'accountId = ?', whereArgs: [accountId]);
+    final result = await db.query(
+      table,
+      where: 'accountId = ?',
+      whereArgs: [accountId],
+    );
     return result.length;
   }
 
@@ -156,13 +171,19 @@ class TransactionTable {
   }
 
   /// Get balance until a specific transaction
-  static Future<double> getBalanceUntilTransactionByTransactionIdForAccount(int transactionId,int? accountId) async {
+  static Future<double> getBalanceUntilTransactionByTransactionIdForAccount(
+    int transactionId,
+    int? accountId,
+  ) async {
     final db = await DatabaseHelper.instance.database;
-    final result = await db.rawQuery('''
+    final result = await db.rawQuery(
+      '''
       SELECT SUM(amount) as balance
       FROM $table
       WHERE accountId = ? AND id <= ?
-    ''', [accountId,transactionId]);
+    ''',
+      [accountId, transactionId],
+    );
 
     if (result.isNotEmpty && result.first['balance'] != null) {
       return result.first['balance'] as double;
@@ -173,11 +194,14 @@ class TransactionTable {
   /// Get total balance for a specific account
   static Future<double> getTotalBalanceForAccount(int? accountId) async {
     final db = await DatabaseHelper.instance.database;
-    final result = await db.rawQuery('''
+    final result = await db.rawQuery(
+      '''
       SELECT SUM(amount) as balance
       FROM $table
       WHERE accountId = ?
-    ''', [accountId]);
+    ''',
+      [accountId],
+    );
 
     if (result.isNotEmpty && result.first['balance'] != null) {
       return result.first['balance'] as double;
@@ -185,19 +209,20 @@ class TransactionTable {
     return 0.0;
   }
 
-
   /// Get today's balance
   static Future<double> getTodayBalanceForAccount(int? accountId) async {
-
     final db = await DatabaseHelper.instance.database;
     final now = DateTime.now();
     final today = DateFormat('yyyy-MM-dd').format(now);
 
-    final result = await db.rawQuery('''
+    final result = await db.rawQuery(
+      '''
       SELECT SUM(amount) as balance
       FROM $table
       WHERE accountId = ? AND DATE(createdAt) = ?
-    ''', [accountId, today]);
+    ''',
+      [accountId, today],
+    );
 
     if (result.isNotEmpty && result.first['balance'] != null) {
       return result.first['balance'] as double;
@@ -224,7 +249,6 @@ class TransactionTable {
 
   // ---- Methods for Day-by-Day Pagination ----
 
-
   static Future<double> getTotalExpense() async {
     final db = await DatabaseHelper.instance.database;
     final expense = await db.rawQuery('''
@@ -234,6 +258,7 @@ class TransactionTable {
     ''');
     return (expense.first['expense'] as num?)?.toDouble().abs() ?? 0.0;
   }
+
   static Future<double> getTotalIncome() async {
     final db = await DatabaseHelper.instance.database;
     final expense = await db.rawQuery('''
@@ -243,37 +268,51 @@ class TransactionTable {
     ''');
     return (expense.first['income'] as num?)?.toDouble() ?? 0.0;
   }
+
   /// Fetches a list of unique dates that have transactions, sorted.
-  static Future<List<DateTime>> getUniqueTransactionDates({bool descending = true}) async {
+  static Future<List<DateTime>> getUniqueTransactionDates({
+    bool descending = true,
+  }) async {
     final db = await DatabaseHelper.instance.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery(
-        'SELECT DISTINCT DATE(createdAt) as transactionDate '
-            'FROM $table '
-            'ORDER BY transactionDate ${descending ? 'DESC' : 'ASC'}'
+      'SELECT DISTINCT DATE(createdAt) as transactionDate '
+      'FROM $table '
+      'ORDER BY transactionDate ${descending ? 'DESC' : 'ASC'}',
     );
 
     if (maps.isEmpty) return [];
 
-    return maps.map((row) => DateTime.parse(row['transactionDate'] as String)).toList();
+    return maps
+        .map((row) => DateTime.parse(row['transactionDate'] as String))
+        .toList();
   }
 
   /// Fetches a list of unique dates that have transactions for a specific account, sorted.
-  static Future<List<DateTime>> getUniqueTransactionDatesForAccount(int? accountId, {bool descending = true}) async {
+  static Future<List<DateTime>> getUniqueTransactionDatesForAccount(
+    int? accountId, {
+    bool descending = true,
+  }) async {
     final db = await DatabaseHelper.instance.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery(
-        'SELECT DISTINCT DATE(createdAt) as transactionDate '
-            'FROM $table '
-            'WHERE accountId = ? '
-            'ORDER BY transactionDate ${descending ? 'DESC' : 'ASC'}',
-        [accountId]);
+      'SELECT DISTINCT DATE(createdAt) as transactionDate '
+      'FROM $table '
+      'WHERE accountId = ? '
+      'ORDER BY transactionDate ${descending ? 'DESC' : 'ASC'}',
+      [accountId],
+    );
 
     if (maps.isEmpty) return [];
 
-    return maps.map((row) => DateTime.parse(row['transactionDate'] as String)).toList();
+    return maps
+        .map((row) => DateTime.parse(row['transactionDate'] as String))
+        .toList();
   }
 
   /// Fetches all transactions for a specific date and account.
-  static Future<List<TransactionModel>> getTransactionsForDateAndAccount(DateTime date, int? accountId) async {
+  static Future<List<TransactionModel>> getTransactionsForDateAndAccount(
+    DateTime date,
+    int? accountId,
+  ) async {
     final db = await DatabaseHelper.instance.database;
     final dateString = date.toIso8601String().substring(0, 10);
 
@@ -290,7 +329,11 @@ class TransactionTable {
   }
 
   /// Fetches all transactions for a specific month and account.
-  static Future<List<TransactionModel>> getTransactionsForMonthAndAccount(int year, int month, int? accountId) async {
+  static Future<List<TransactionModel>> getTransactionsForMonthAndAccount(
+    int year,
+    int month,
+    int? accountId,
+  ) async {
     final db = await DatabaseHelper.instance.database;
     // Format month to be two digits (e.g., '01' for January)
     final monthString = month.toString().padLeft(2, '0');
@@ -310,7 +353,9 @@ class TransactionTable {
   }
 
   /// Fetches all transactions for a specific date.
-  static Future<List<TransactionModel>> getTransactionsForDate(DateTime date) async {
+  static Future<List<TransactionModel>> getTransactionsForDate(
+    DateTime date,
+  ) async {
     final db = await DatabaseHelper.instance.database;
     final dateString = date.toIso8601String().substring(0, 10);
 

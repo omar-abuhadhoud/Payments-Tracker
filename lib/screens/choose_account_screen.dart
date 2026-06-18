@@ -558,13 +558,6 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
     final actions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Tooltip(
-          message: 'Add New Account',
-          child: IconButton(
-            onPressed: _showAddAccountDialog,
-            icon: const Icon(Icons.add),
-          ),
-        ),
         _buildToolButton(
           message: _isSortAscending
               ? 'Sort by balance: ascending'
@@ -606,14 +599,6 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
 
             return Row(
               children: [
-                Tooltip(
-                  message: 'Add New Account',
-                  child: IconButton(
-                    onPressed: _showAddAccountDialog,
-                    icon: const Icon(Icons.add),
-                  ),
-                ),
-                const SizedBox(width: 4),
                 Expanded(child: searchField),
                 const SizedBox(width: 8),
                 _buildToolButton(
@@ -715,6 +700,18 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
 
   double _totalOverviewDrawerBottomPadding() {
     return _isTotalOverviewDrawerOpen ? 230 : 82;
+  }
+
+  Widget _buildAddAccountFab() {
+    return Positioned(
+      right: 20,
+      bottom: _totalOverviewDrawerBottomPadding() + 12,
+      child: FloatingActionButton(
+        onPressed: _showAddAccountDialog,
+        tooltip: 'Add New Account',
+        child: const Icon(Icons.add),
+      ),
+    );
   }
 
   @override
@@ -959,6 +956,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                   ],
                 ),
           if (!_isInitiallyLoading) _buildTotalOverviewDrawer(),
+          if (!_isInitiallyLoading) _buildAddAccountFab(),
         ],
       ),
     );

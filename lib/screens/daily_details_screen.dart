@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:payments_tracker_flutter/database/tables/transaction_table.dart';
 import 'package:payments_tracker_flutter/models/transaction_model.dart';
@@ -8,6 +7,7 @@ import 'package:payments_tracker_flutter/widgets/monthly_or_daily_details_card.d
 
 import '../widgets/basic/safe_scaffold.dart';
 import '../widgets/transaction_list_tile_card.dart';
+import '../widgets/utility.dart';
 
 class DailyDetailsScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -29,7 +29,6 @@ class DailyDetailsScreen extends StatefulWidget {
 
 class _DailyDetailsScreenState extends State<DailyDetailsScreen> {
   late Future<List<TransactionModel>> _transactionsFuture;
-  bool _showDetailsCard = true;
 
   final Color _pageBackgroundColor = Colors.white;
   final Color _primaryTextColor = AppColors.purple;
@@ -113,17 +112,6 @@ class _DailyDetailsScreenState extends State<DailyDetailsScreen> {
     );
   }
 
-  bool _handleScrollDirection(UserScrollNotification notification) {
-    if (notification.direction == ScrollDirection.reverse && _showDetailsCard) {
-      setState(() => _showDetailsCard = false);
-    } else if (notification.direction == ScrollDirection.forward &&
-        !_showDetailsCard) {
-      setState(() => _showDetailsCard = true);
-    }
-
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final String formattedDate = DateFormat(
@@ -165,46 +153,36 @@ class _DailyDetailsScreenState extends State<DailyDetailsScreen> {
 
             final transactions = snapshot.data ?? [];
 
-            return Column(
-              children: [
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.topCenter,
-                  child: _showDetailsCard
-                      ? _buildSummaryCard(transactions)
-                      : const SizedBox.shrink(),
-                ),
-                Padding(
-                  // Title for the transaction list
-                  padding: const EdgeInsets.only(
-                    left: 20.0,
-                    right: 20.0,
-                    top: 16.0,
-                    bottom: 8.0,
+            return Utility.hideOnScroll(
+              hideable: _buildSummaryCard(transactions),
+              scrollable: Column(
+                children: [
+                  Padding(
+                    // Title for the transaction list
+                    padding: const EdgeInsets.only(
+                      left: 20.0,
+                      right: 20.0,
+                      top: 16.0,
+                      bottom: 8.0,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.list_alt_rounded, color: _primaryTextColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Transactions',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: _primaryTextColor,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.list_alt_rounded, color: _primaryTextColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Transactions',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: _primaryTextColor,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: NotificationListener<UserScrollNotification>(
-                    onNotification: _handleScrollDirection,
-                    child: _buildTransactionList(transactions),
-                  ),
-                ),
-              ],
+                  Expanded(child: _buildTransactionList(transactions)),
+                ],
+              ),
             );
           },
         ),

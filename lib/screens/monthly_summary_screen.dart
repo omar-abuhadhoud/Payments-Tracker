@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 // import 'package:fl_chart/fl_chart.dart'; // Removed fl_chart import
 import 'package:payments_tracker_flutter/database/tables/transaction_table.dart';
@@ -11,6 +10,7 @@ import 'package:payments_tracker_flutter/widgets/swipe_period_navigation.dart';
 
 import '../widgets/basic/safe_scaffold.dart';
 import '../widgets/monthly_or_daily_details_card.dart';
+import '../widgets/utility.dart';
 // import 'add_edit_transaction_screen.dart' show TransactionType; // Assuming not needed for this change
 
 // Placeholder for the daily details screen - you'll need to create this
@@ -33,7 +33,6 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   double _selectedMonthNet = 0.0;
   double _overallBalanceAtEndOfSelectedMonth = 0.0;
   bool _isLoading = false;
-  bool _showDetailsCard = true;
 
   @override
   void initState() {
@@ -270,17 +269,6 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
     if (_isLoading) return false;
     // Can go to a newer month if the current index is greater than 0
     return _currentMonthIndex > 0;
-  }
-
-  bool _handleScrollDirection(UserScrollNotification notification) {
-    if (notification.direction == ScrollDirection.reverse && _showDetailsCard) {
-      setState(() => _showDetailsCard = false);
-    } else if (notification.direction == ScrollDirection.forward &&
-        !_showDetailsCard) {
-      setState(() => _showDetailsCard = true);
-    }
-
-    return false;
   }
 
   // _buildChart method is kept for now but not used.
@@ -761,40 +749,26 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
         currentTooltip: 'Current month',
         child: Padding(
           padding: const EdgeInsets.all(4.0),
-          child: Column(
-            children: [
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeInOut,
-                alignment: Alignment.topCenter,
-                child: _showDetailsCard
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 10),
-                          MonthlyOrDailyDetailsCard(
-                            isMonthly: true,
-                            selectedDateTime: _displayedMonthDate,
-                            income: _selectedMonthIncome,
-                            expense: _selectedMonthExpense,
-                            overallBalanceEndOfMonthOrDay:
-                                _overallBalanceAtEndOfSelectedMonth,
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              Expanded(
-                child: NotificationListener<UserScrollNotification>(
-                  onNotification: _handleScrollDirection,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: _buildDailyTransactionCards(),
-                  ),
+          child: Utility.hideOnScroll(
+            hideable: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                MonthlyOrDailyDetailsCard(
+                  isMonthly: true,
+                  selectedDateTime: _displayedMonthDate,
+                  income: _selectedMonthIncome,
+                  expense: _selectedMonthExpense,
+                  overallBalanceEndOfMonthOrDay:
+                      _overallBalanceAtEndOfSelectedMonth,
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+              ],
+            ),
+            scrollable: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: _buildDailyTransactionCards(),
+            ),
           ),
         ),
       ),

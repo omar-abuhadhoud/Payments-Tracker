@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 // import 'package:fl_chart/fl_chart.dart'; // Removed fl_chart import
 import 'package:payments_tracker_flutter/database/tables/transaction_table.dart';
@@ -32,6 +33,7 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   double _selectedMonthNet = 0.0;
   double _overallBalanceAtEndOfSelectedMonth = 0.0;
   bool _isLoading = false;
+  bool _showDetailsCard = true;
 
   @override
   void initState() {
@@ -268,6 +270,17 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
     if (_isLoading) return false;
     // Can go to a newer month if the current index is greater than 0
     return _currentMonthIndex > 0;
+  }
+
+  bool _handleScrollDirection(UserScrollNotification notification) {
+    if (notification.direction == ScrollDirection.reverse && _showDetailsCard) {
+      setState(() => _showDetailsCard = false);
+    } else if (notification.direction == ScrollDirection.forward &&
+        !_showDetailsCard) {
+      setState(() => _showDetailsCard = true);
+    }
+
+    return false;
   }
 
   // _buildChart method is kept for now but not used.
@@ -750,20 +763,35 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
           padding: const EdgeInsets.all(4.0),
           child: Column(
             children: [
-              const SizedBox(height: 10),
-              MonthlyOrDailyDetailsCard(
-                isMonthly: true,
-                selectedDateTime: _displayedMonthDate,
-                income: _selectedMonthIncome,
-                expense: _selectedMonthExpense,
-                overallBalanceEndOfMonthOrDay:
-                    _overallBalanceAtEndOfSelectedMonth,
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: _showDetailsCard
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 10),
+                          MonthlyOrDailyDetailsCard(
+                            isMonthly: true,
+                            selectedDateTime: _displayedMonthDate,
+                            income: _selectedMonthIncome,
+                            expense: _selectedMonthExpense,
+                            overallBalanceEndOfMonthOrDay:
+                                _overallBalanceAtEndOfSelectedMonth,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
               ),
-              const SizedBox(height: 20),
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: _buildDailyTransactionCards(),
+                child: NotificationListener<UserScrollNotification>(
+                  onNotification: _handleScrollDirection,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: _buildDailyTransactionCards(),
+                  ),
                 ),
               ),
             ],

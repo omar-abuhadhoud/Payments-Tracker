@@ -16,7 +16,9 @@ import '../widgets/basic/safe_scaffold.dart';
 import '../widgets/utility.dart';
 
 class TotalOverview extends StatefulWidget {
-  const TotalOverview({super.key});
+  final bool showTitle;
+
+  const TotalOverview({super.key, this.showTitle = true});
 
   @override
   State<TotalOverview> createState() => _TotalOverviewState();
@@ -58,11 +60,13 @@ class _TotalOverviewState extends State<TotalOverview> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Total Overview',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 14),
+          if (widget.showTitle) ...[
+            const Text(
+              'Total Overview',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 14),
+          ],
           // 1. Income Row
           _buildSummaryRow('Income:', totalIncome, AppColors.incomeGreen),
           const SizedBox(height: 8),
@@ -128,6 +132,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
   bool _isInitiallyLoading = true;
   bool _isSortAscending = true; // 🔽 Asc first by default
   bool _isAccountToolsVisible = true;
+  bool _isTotalOverviewDrawerOpen = false;
 
   @override
   void initState() {
@@ -214,27 +219,6 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
     ).then((_) {
       _loadAccounts();
     });
-  }
-
-  void _showTotalOverviewDrawer() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      useSafeArea: true,
-      isScrollControlled: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (BuildContext context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: const [TotalOverview()],
-          ),
-        );
-      },
-    );
   }
 
   Future<void> _showAddAccountDialog() async {
@@ -593,11 +577,6 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
             });
           },
         ),
-        _buildToolButton(
-          message: 'Show totals',
-          icon: Icons.summarize_outlined,
-          onPressed: _showTotalOverviewDrawer,
-        ),
       ],
     );
 
@@ -649,17 +628,93 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                     });
                   },
                 ),
-                _buildToolButton(
-                  message: 'Show totals',
-                  icon: Icons.summarize_outlined,
-                  onPressed: _showTotalOverviewDrawer,
-                ),
               ],
             );
           },
         ),
       ),
     );
+  }
+
+  Widget _buildTotalOverviewDrawerHandle({required bool isOpen}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _isTotalOverviewDrawerOpen = !_isTotalOverviewDrawerOpen;
+          });
+        },
+        child: SizedBox(
+          height: 52,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                color: AppColors.purple,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Total Overview',
+                style: TextStyle(
+                  color: AppColors.purple,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTotalOverviewDrawer() {
+    final maxContentHeight = MediaQuery.sizeOf(context).height * .42;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppColors.purple.withValues(alpha: .14)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: .16),
+                blurRadius: 22,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _isTotalOverviewDrawerOpen
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTotalOverviewDrawerHandle(isOpen: true),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: maxContentHeight),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                        child: const TotalOverview(showTitle: false),
+                      ),
+                    ),
+                  ],
+                )
+              : _buildTotalOverviewDrawerHandle(isOpen: false),
+        ),
+      ),
+    );
+  }
+
+  double _totalOverviewDrawerBottomPadding() {
+    return _isTotalOverviewDrawerOpen ? 230 : 82;
   }
 
   @override
@@ -725,171 +780,187 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
         ],
       ),
 
-      body: _isInitiallyLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _accountsData.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'No accounts yet.\nTap the + button to add your first one!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16.0),
-                ),
-              ),
-            )
-          : Column(
-              children: [
-                // 🔍 Search + ↕️ Sort Row
-                ClipRect(
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 260),
-                    curve: Curves.easeOutCubic,
-                    child: _isAccountToolsVisible
-                        ? AnimatedOpacity(
-                            duration: const Duration(milliseconds: 180),
-                            opacity: 1,
-                            child: Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    14,
-                                    14,
-                                    0,
-                                  ),
-                                  child: _buildAccountTools(context),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+      body: Stack(
+        children: [
+          _isInitiallyLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _accountsData.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'No accounts yet.\nTap the + button to add your first one!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16.0),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: NotificationListener<UserScrollNotification>(
-                    onNotification: _handleAccountsScroll,
-                    child:
-                        _filteredAccountsData.isEmpty &&
-                            _searchController.text.isNotEmpty
-                        ? const Center(
-                            child: Text(
-                              'No accounts match your search.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16.0),
-                            ),
-                          )
-                        : ListView.builder(
-                            controller: _accountsScrollController,
-                            padding: const EdgeInsets.only(top: 2, bottom: 12),
-                            itemCount: _filteredAccountsData.length,
-                            itemBuilder: (context, index) {
-                              final accountData = _filteredAccountsData[index];
-                              final AccountModel account =
-                                  accountData['account'] as AccountModel;
-                              final double balance =
-                                  (accountData['balance'] as num).toDouble();
+                )
+              : Column(
+                  children: [
+                    // 🔍 Search + ↕️ Sort Row
+                    ClipRect(
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        child: _isAccountToolsVisible
+                            ? AnimatedOpacity(
+                                duration: const Duration(milliseconds: 180),
+                                opacity: 1,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        14,
+                                        14,
+                                        0,
+                                      ),
+                                      child: _buildAccountTools(context),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
+                    Expanded(
+                      child: NotificationListener<UserScrollNotification>(
+                        onNotification: _handleAccountsScroll,
+                        child:
+                            _filteredAccountsData.isEmpty &&
+                                _searchController.text.isNotEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No accounts match your search.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 16.0),
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: _accountsScrollController,
+                                padding: EdgeInsets.only(
+                                  top: 2,
+                                  bottom: _totalOverviewDrawerBottomPadding(),
+                                ),
+                                itemCount: _filteredAccountsData.length,
+                                itemBuilder: (context, index) {
+                                  final accountData =
+                                      _filteredAccountsData[index];
+                                  final AccountModel account =
+                                      accountData['account'] as AccountModel;
+                                  final double balance =
+                                      (accountData['balance'] as num)
+                                          .toDouble();
 
-                              return AccountCard(
-                                account: account,
-                                balance: balance,
-                                onTap: () => _onAccountTap(account),
-                                onEditPressed: () =>
-                                    _showEditAccountDialog(account),
-                                onDeletePressed: () async {
-                                  _deleteConfirmController.clear();
-                                  bool isDeleteButtonEnabled = false;
+                                  return AccountCard(
+                                    account: account,
+                                    balance: balance,
+                                    onTap: () => _onAccountTap(account),
+                                    onEditPressed: () =>
+                                        _showEditAccountDialog(account),
+                                    onDeletePressed: () async {
+                                      _deleteConfirmController.clear();
+                                      bool isDeleteButtonEnabled = false;
 
-                                  final bool?
-                                  confirmDelete = await showDialog<bool>(
-                                    context: context,
-                                    barrierDismissible: false,
-                                    builder: (BuildContext context) {
-                                      return StatefulBuilder(
-                                        builder: (context, setStateDialog) {
-                                          return AlertDialog(
-                                            title: const Text('Confirm Delete'),
-                                            content: SingleChildScrollView(
-                                              child: ListBody(
-                                                children: <Widget>[
-                                                  Text(
-                                                    'Are you sure you want to delete account "${account.name}" with all its transactions? This action is irreversible.',
+                                      final bool?
+                                      confirmDelete = await showDialog<bool>(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (BuildContext context) {
+                                          return StatefulBuilder(
+                                            builder: (context, setStateDialog) {
+                                              return AlertDialog(
+                                                title: const Text(
+                                                  'Confirm Delete',
+                                                ),
+                                                content: SingleChildScrollView(
+                                                  child: ListBody(
+                                                    children: <Widget>[
+                                                      Text(
+                                                        'Are you sure you want to delete account "${account.name}" with all its transactions? This action is irreversible.',
+                                                      ),
+                                                      const Text(
+                                                        'Please type "I am sure" to confirm.',
+                                                      ),
+                                                      TextField(
+                                                        controller:
+                                                            _deleteConfirmController,
+                                                        decoration:
+                                                            const InputDecoration(
+                                                              hintText:
+                                                                  'I am sure',
+                                                            ),
+                                                        onChanged: (text) {
+                                                          setStateDialog(() {
+                                                            isDeleteButtonEnabled =
+                                                                text ==
+                                                                'I am sure';
+                                                          });
+                                                        },
+                                                      ),
+                                                    ],
                                                   ),
-                                                  const Text(
-                                                    'Please type "I am sure" to confirm.',
+                                                ),
+                                                actions: <Widget>[
+                                                  TextButton(
+                                                    child: const Text('Cancel'),
+                                                    onPressed: () =>
+                                                        Navigator.of(
+                                                          context,
+                                                        ).pop(false),
                                                   ),
-                                                  TextField(
-                                                    controller:
-                                                        _deleteConfirmController,
-                                                    decoration:
-                                                        const InputDecoration(
-                                                          hintText: 'I am sure',
-                                                        ),
-                                                    onChanged: (text) {
-                                                      setStateDialog(() {
-                                                        isDeleteButtonEnabled =
-                                                            text == 'I am sure';
-                                                      });
-                                                    },
+                                                  TextButton(
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          AppColors.expenseRed,
+                                                    ),
+                                                    onPressed:
+                                                        isDeleteButtonEnabled
+                                                        ? () => Navigator.of(
+                                                            context,
+                                                          ).pop(true)
+                                                        : null,
+                                                    child: const Text('Delete'),
                                                   ),
                                                 ],
-                                              ),
-                                            ),
-                                            actions: <Widget>[
-                                              TextButton(
-                                                child: const Text('Cancel'),
-                                                onPressed: () => Navigator.of(
-                                                  context,
-                                                ).pop(false),
-                                              ),
-                                              TextButton(
-                                                style: TextButton.styleFrom(
-                                                  foregroundColor:
-                                                      AppColors.expenseRed,
-                                                ),
-                                                onPressed: isDeleteButtonEnabled
-                                                    ? () => Navigator.of(
-                                                        context,
-                                                      ).pop(true)
-                                                    : null,
-                                                child: const Text('Delete'),
-                                              ),
-                                            ],
+                                              );
+                                            },
                                           );
                                         },
                                       );
+
+                                      if (confirmDelete == true) {
+                                        if (account.id == null) {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Cannot delete account without an ID.',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.expenseRed,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+                                        await AccountTable.delete(account.id!);
+                                        _loadAccounts();
+                                      }
                                     },
                                   );
-
-                                  if (confirmDelete == true) {
-                                    if (account.id == null) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Cannot delete account without an ID.',
-                                            ),
-                                            backgroundColor:
-                                                AppColors.expenseRed,
-                                          ),
-                                        );
-                                      }
-                                      return;
-                                    }
-                                    await AccountTable.delete(account.id!);
-                                    _loadAccounts();
-                                  }
                                 },
-                              );
-                            },
-                          ),
-                  ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+          if (!_isInitiallyLoading) _buildTotalOverviewDrawer(),
+        ],
+      ),
     );
   }
 }

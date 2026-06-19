@@ -563,7 +563,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
     );
 
     return Material(
-      color: AppColors.offWhite.withValues(alpha: .86),
+      color: AppColors.offWhite,
       elevation: 6,
       shadowColor: AppColors.purple.withValues(alpha: .10),
       borderRadius: BorderRadius.circular(26),
@@ -584,83 +584,6 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
     );
   }
 
-  Widget _buildTotalOverviewDrawerHandle({required bool isOpen}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _isTotalOverviewDrawerOpen = !_isTotalOverviewDrawerOpen;
-          });
-        },
-        child: SizedBox(
-          height: 52,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
-                color: AppColors.purple,
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Total Overview',
-                style: TextStyle(
-                  color: AppColors.purple,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTotalOverviewDrawer() {
-    final maxContentHeight = MediaQuery.sizeOf(context).height * .42;
-
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: AnimatedSize(
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppColors.purple.withValues(alpha: .14)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: .16),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: _isTotalOverviewDrawerOpen
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTotalOverviewDrawerHandle(isOpen: true),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(maxHeight: maxContentHeight),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                        child: const TotalOverview(showTitle: false),
-                      ),
-                    ),
-                  ],
-                )
-              : _buildTotalOverviewDrawerHandle(isOpen: false),
-        ),
-      ),
-    );
-  }
-
   double _totalOverviewDrawerBottomPadding() {
     return _isTotalOverviewDrawerOpen ? 230 : 82;
   }
@@ -670,13 +593,6 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
     return SafeScaffold(
       appBar: AppBar(
         title: const Text('Choose Account'),
-        centerTitle: true,
-        elevation: 3,
-        shadowColor: AppColors.purple.withValues(alpha: .12),
-        surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-        ),
         actions: [
           PopupMenuButton<String>(
             onSelected: (String value) {
@@ -744,6 +660,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                   ),
                 )
               : Utility.hideOnScroll(
+                  floating: true,
                   hideable: Column(
                     children: [
                       Padding(
@@ -766,7 +683,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                       : ListView.builder(
                           controller: _accountsScrollController,
                           padding: EdgeInsets.only(
-                            top: 2,
+                            top: 95,
                             bottom: _totalOverviewDrawerBottomPadding(),
                           ),
                           itemCount: _filteredAccountsData.length,
@@ -872,7 +789,20 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                           },
                         ),
                 ),
-          if (!_isInitiallyLoading) _buildTotalOverviewDrawer(),
+          if (!_isInitiallyLoading)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Utility.expandableFloatingDrawer(
+                title: 'Total Overview',
+                content: const TotalOverview(showTitle: false),
+                isOpen: _isTotalOverviewDrawerOpen,
+                onToggle: () {
+                  setState(() {
+                    _isTotalOverviewDrawerOpen = !_isTotalOverviewDrawerOpen;
+                  });
+                },
+              ),
+            ),
         ],
       ),
     );

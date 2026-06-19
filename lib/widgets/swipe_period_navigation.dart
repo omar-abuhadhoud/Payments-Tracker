@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../global_variables/app_colors.dart';
 
-class SwipePeriodNavigation extends StatelessWidget {
+class SwipePeriodNavigation extends StatefulWidget {
   final Widget child;
   final String label;
   final bool isLoading;
@@ -30,41 +30,97 @@ class SwipePeriodNavigation extends StatelessWidget {
     this.currentTooltip = 'Current',
   });
 
+  @override
+  State<SwipePeriodNavigation> createState() => _SwipePeriodNavigationState();
+}
+
+class _SwipePeriodNavigationState extends State<SwipePeriodNavigation> {
+  double _slideDirection = 0;
+
   void _handleHorizontalSwipe(DragEndDetails details) {
-    if (isLoading) return;
+    if (widget.isLoading) return;
 
     final velocity = details.primaryVelocity ?? 0;
     if (velocity.abs() < 280) return;
 
-    if (velocity < 0 && canGoOlder) {
-      onGoOlder?.call();
-    } else if (velocity > 0 && canGoNewer) {
-      onGoNewer?.call();
+    if (velocity < 0 && widget.canGoOlder) {
+      setState(() => _slideDirection = 1);
+      widget.onGoOlder?.call();
+    } else if (velocity > 0 && widget.canGoNewer) {
+      setState(() => _slideDirection = -1);
+      widget.onGoNewer?.call();
     }
+  }
+
+  void _goToCurrent() {
+    setState(() => _slideDirection = 0);
+    widget.onGoCurrent?.call();
+  }
+
+  void _pickPeriod() {
+    setState(() => _slideDirection = 0);
+    widget.onPickPeriod?.call();
+  }
+
+  Widget _buildAnimatedContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        final isIncoming = child.key == ValueKey(widget.label);
+        final horizontalOffset = _slideDirection == 0
+            ? Offset.zero
+            : Offset(isIncoming ? _slideDirection : -_slideDirection, 0);
+
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: horizontalOffset,
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(key: ValueKey(widget.label), child: widget.child),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
+      clipBehavior: Clip.hardEdge,
       children: [
         GestureDetector(
           behavior: HitTestBehavior.translucent,
           onHorizontalDragEnd: _handleHorizontalSwipe,
-          child: child,
+          child: _buildAnimatedContent(),
         ),
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
           child: _PeriodBottomControls(
-            label: label,
-            isLoading: isLoading,
-            canGoOlder: canGoOlder,
-            canGoNewer: canGoNewer,
-            isCurrent: isCurrent,
-            onGoCurrent: onGoCurrent,
-            onPickPeriod: onPickPeriod,
-            currentTooltip: currentTooltip,
+            label: widget.label,
+            isLoading: widget.isLoading,
+            canGoOlder: widget.canGoOlder,
+            canGoNewer: widget.canGoNewer,
+            isCurrent: widget.isCurrent,
+            onGoCurrent: widget.onGoCurrent == null ? null : _goToCurrent,
+            onPickPeriod: widget.onPickPeriod == null ? null : _pickPeriod,
+            currentTooltip: widget.currentTooltip,
           ),
         ),
       ],

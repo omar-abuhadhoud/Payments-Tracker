@@ -33,6 +33,7 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   double _selectedMonthNet = 0.0;
   double _overallBalanceAtEndOfSelectedMonth = 0.0;
   bool _isLoading = false;
+  bool _isMonthlyDetailsDrawerOpen = false;
 
   @override
   void initState() {
@@ -705,7 +706,7 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
     final DateTime currentMonthDateTime = _availableMonths[_currentMonthIndex];
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 112),
+      padding: const EdgeInsets.only(top: 72, bottom: 112),
       itemCount: daysWithTransactions.length,
       itemBuilder: (context, index) {
         final data = daysWithTransactions[index];
@@ -750,20 +751,29 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
         child: Padding(
           padding: const EdgeInsets.all(4.0),
           child: Utility.hideOnScroll(
-            hideable: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                MonthlyOrDailyDetailsCard(
-                  isMonthly: true,
-                  selectedDateTime: _displayedMonthDate,
-                  income: _selectedMonthIncome,
-                  expense: _selectedMonthExpense,
-                  overallBalanceEndOfMonthOrDay:
-                      _overallBalanceAtEndOfSelectedMonth,
-                ),
-                const SizedBox(height: 20),
-              ],
+            floating: true,
+            hideEnabled: !_isMonthlyDetailsDrawerOpen,
+            visibilityResetKey: _displayedMonthDate,
+            hideable: Utility.expandableFloatingDrawer(
+              title: 'Monthly Details',
+              content: MonthlyOrDailyDetailsCard(
+                isMonthly: true,
+                selectedDateTime: _displayedMonthDate,
+                income: _selectedMonthIncome,
+                expense: _selectedMonthExpense,
+                overallBalanceEndOfMonthOrDay:
+                    _overallBalanceAtEndOfSelectedMonth,
+              ),
+              isOpen: _isMonthlyDetailsDrawerOpen,
+              onToggle: () {
+                setState(() {
+                  _isMonthlyDetailsDrawerOpen = !_isMonthlyDetailsDrawerOpen;
+                });
+              },
+              direction: ExpandableDrawerDirection.down,
+              showShadow: false,
+              maxContentHeightFactor: .5,
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             ),
             scrollable: ClipRRect(
               borderRadius: BorderRadius.circular(20),

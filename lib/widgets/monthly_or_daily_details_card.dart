@@ -10,7 +10,7 @@ class MonthlyOrDailyDetailsCard extends StatelessWidget {
   final double income;
   final double expense;
   final double overallBalanceEndOfMonthOrDay;
-  final bool isMonthly;//if not then its daily
+  final bool isMonthly; //if not then its daily
 
   const MonthlyOrDailyDetailsCard({
     super.key,
@@ -21,11 +21,9 @@ class MonthlyOrDailyDetailsCard extends StatelessWidget {
     required this.isMonthly,
   });
 
-  String get _formattedDate =>
-      isMonthly ?
-      DateFormat.yMMMM().format(selectedDateTime)
+  String get _formattedDate => isMonthly
+      ? DateFormat.yMMMM().format(selectedDateTime)
       : DateFormat.MMMMd().format(selectedDateTime);
-
 
   double get _net => income - expense;
 
@@ -39,22 +37,29 @@ class MonthlyOrDailyDetailsCard extends StatelessWidget {
           children: [
             // Header
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Details: $_formattedDate',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.purple,
+                Expanded(
+                  child: Text(
+                    'Details: $_formattedDate',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.purple,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 12),
                 const Icon(Icons.assessment, color: AppColors.purple, size: 28),
               ],
             ),
 
             const SizedBox(height: 16),
-            Divider(color: AppColors.subtlePurple.withOpacity(0.2), thickness: 1),
+            Divider(
+              color: AppColors.subtlePurple.withOpacity(0.2),
+              thickness: 1,
+            ),
             const SizedBox(height: 16),
 
             // Income
@@ -85,36 +90,52 @@ class MonthlyOrDailyDetailsCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 16),
-            Divider(color: AppColors.subtlePurple.withOpacity(0.2), thickness: 1),
+            Divider(
+              color: AppColors.subtlePurple.withOpacity(0.2),
+              thickness: 1,
+            ),
             const SizedBox(height: 16),
 
-          Row(
-            children: [
-              const Icon(Icons.account_balance_wallet, color: AppColors.purple, size: 22),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  'Overall Balance:',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight:  FontWeight.w700,
-                    color: AppColors.purple,
+            Row(
+              children: [
+                const Icon(
+                  Icons.account_balance_wallet,
+                  color: AppColors.purple,
+                  size: 22,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Overall Balance:',
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.purple,
+                      ),
+                    ),
                   ),
                 ),
-              ),
 
-              Expanded(child: Utility.handleNumberAppearanceForOverflow(number: overallBalanceEndOfMonthOrDay,
-                  color: overallBalanceEndOfMonthOrDay >= 0
-                      ? AppColors.incomeGreen
-                      : AppColors.expenseRed
-                  , fontSize: 18,
-                  fontWeight: FontWeight.bold, textAlign: TextAlign.center))
+                Expanded(
+                  child: Utility.handleNumberAppearanceForOverflow(
+                    number: overallBalanceEndOfMonthOrDay,
+                    color: overallBalanceEndOfMonthOrDay >= 0
+                        ? AppColors.incomeGreen
+                        : AppColors.expenseRed,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
 
-
-            ],
-          ),
             // Overall Balance
-
           ],
         ),
       ),
@@ -142,12 +163,15 @@ class MonthlyOrDailyDetailsCard extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(child:Utility.handleNumberAppearanceForOverflow(number: value,
-            color: color, fontSize: 16
-            ,fontWeight: isBold ? FontWeight.w700 : FontWeight.w600
-            , textAlign: TextAlign.right))
-
-
+        Expanded(
+          child: Utility.handleNumberAppearanceForOverflow(
+            number: value,
+            color: color,
+            fontSize: 16,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+            textAlign: TextAlign.right,
+          ),
+        ),
       ],
     );
   }

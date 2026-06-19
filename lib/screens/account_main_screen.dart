@@ -6,6 +6,7 @@ import '../widgets/basic/safe_scaffold.dart';
 import 'add_edit_transaction_screen.dart';
 import 'transactions_log_screen.dart';
 import 'monthly_summary_screen.dart';
+import 'date_range_summary_screen.dart';
 import '../database/tables/transaction_table.dart';
 import '../global_variables/app_colors.dart';
 
@@ -122,7 +123,13 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
       _DashboardAction(
         label: 'Monthly',
         icon: Icons.calendar_month,
+        isPrimary: true,
         onPressed: () => _openScreen(const MonthlySummaryScreen()),
+      ),
+      _DashboardAction(
+        label: 'Date Range',
+        icon: Icons.date_range_outlined,
+        onPressed: () => _openScreen(const DateRangeSummaryScreen()),
       ),
     ];
 
@@ -133,6 +140,8 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
         _buildActionTile(actions[1]),
         const SizedBox(height: 18),
         _buildActionTile(actions[2]),
+        const SizedBox(height: 18),
+        _buildActionTile(actions[3]),
       ],
     );
   }

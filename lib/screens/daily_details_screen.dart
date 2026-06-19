@@ -29,6 +29,7 @@ class DailyDetailsScreen extends StatefulWidget {
 
 class _DailyDetailsScreenState extends State<DailyDetailsScreen> {
   late Future<List<TransactionModel>> _transactionsFuture;
+  bool _isDailyDetailsDrawerOpen = false;
 
   final Color _pageBackgroundColor = Colors.white;
   final Color _primaryTextColor = AppColors.purple;
@@ -154,9 +155,25 @@ class _DailyDetailsScreenState extends State<DailyDetailsScreen> {
             final transactions = snapshot.data ?? [];
 
             return Utility.hideOnScroll(
-              hideable: _buildSummaryCard(transactions),
+              floating: true,
+              hideEnabled: !_isDailyDetailsDrawerOpen,
+              hideable: Utility.expandableFloatingDrawer(
+                title: 'Daily Details',
+                content: _buildSummaryCard(transactions),
+                isOpen: _isDailyDetailsDrawerOpen,
+                onToggle: () {
+                  setState(() {
+                    _isDailyDetailsDrawerOpen = !_isDailyDetailsDrawerOpen;
+                  });
+                },
+                direction: ExpandableDrawerDirection.down,
+                showShadow: false,
+                maxContentHeightFactor: .5,
+                margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              ),
               scrollable: Column(
                 children: [
+                  const SizedBox(height: 72),
                   Padding(
                     // Title for the transaction list
                     padding: const EdgeInsets.only(

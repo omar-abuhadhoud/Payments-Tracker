@@ -89,6 +89,41 @@ class TransactionTable {
     return {'income': income, 'expense': expense, 'overallBalance': overall};
   }
 
+  /// Returns income, expense, and net balance for an inclusive date range.
+  static Future<Map<String, double>> getSummaryForDateRange(
+    int? accountId,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    if (accountId == null) {
+      return {'income': 0.0, 'expense': 0.0, 'balance': 0.0};
+    }
+
+    final db = await DatabaseHelper.instance.database;
+    final start = DateFormat('yyyy-MM-dd').format(startDate);
+    final end = DateFormat('yyyy-MM-dd').format(endDate);
+
+    final rows = await db.rawQuery(
+      '''
+      SELECT
+        COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expense,
+        COALESCE(SUM(amount), 0) AS balance
+      FROM $table
+      WHERE accountId = ?
+        AND date(createdAt) BETWEEN date(?) AND date(?)
+      ''',
+      [accountId, start, end],
+    );
+
+    final row = rows.first;
+    return {
+      'income': (row['income'] as num?)?.toDouble() ?? 0.0,
+      'expense': ((row['expense'] as num?)?.toDouble() ?? 0.0).abs(),
+      'balance': (row['balance'] as num?)?.toDouble() ?? 0.0,
+    };
+  }
+
   static Future<List<Map<String, dynamic>>>
   getDailyNetWithCumulativeBalanceForMonth(
     int? accountId,

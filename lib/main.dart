@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:payments_tracker_flutter/screens/account_main_screen.dart';
-import 'database/database_helper.dart';
+import 'package:flutter/services.dart';
 import 'package:payments_tracker_flutter/screens/choose_account_screen.dart';
 import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: AppColors.offWhite,
+      systemNavigationBarDividerColor: Color(0xFFE2D9F5),
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
 
   runApp(const MyApp());
 }
@@ -29,8 +39,6 @@ class MyApp extends StatelessWidget {
           onSecondary: Colors.white,
           surface: AppColors.offWhite,
           onSurface: AppColors.purple,
-          background: Colors.white,
-          onBackground: AppColors.purple,
           error: AppColors.expenseRed,
           onError: Colors.white,
         ),
@@ -38,11 +46,16 @@ class MyApp extends StatelessWidget {
           bodyColor: AppColors.purple,
           displayColor: AppColors.purple,
         ),
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: AppColors.purple,
-          elevation: 0,
+          elevation: 3,
           centerTitle: true,
+          shadowColor: AppColors.purple.withValues(alpha: .12),
+          surfaceTintColor: Colors.transparent,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -53,9 +66,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.purple,
-          ),
+          style: TextButton.styleFrom(foregroundColor: AppColors.purple),
         ),
         snackBarTheme: const SnackBarThemeData(
           backgroundColor: AppColors.purple,

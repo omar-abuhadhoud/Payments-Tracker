@@ -123,7 +123,8 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
       _DashboardAction(
         label: 'Monthly',
         icon: Icons.calendar_month,
-        isPrimary: true,
+       
+        
         onPressed: () => _openScreen(const MonthlySummaryScreen()),
       ),
       _DashboardAction(
@@ -147,8 +148,12 @@ class _AccountMainScreenState extends State<AccountMainScreen> {
   }
 
   Widget _buildActionTile(_DashboardAction action) {
-    final background = action.isPrimary ? AppColors.purple : Colors.white;
-    final foreground = action.isPrimary ? Colors.white : AppColors.purple;
+    final background =
+        action.backgroundColor ??
+        (action.isPrimary ? AppColors.purple : Colors.white);
+    final foreground =
+        action.foregroundColor ??
+        (action.isPrimary ? Colors.white : AppColors.purple);
 
     return Material(
       color: background,
@@ -240,11 +245,15 @@ class _DashboardAction {
   final IconData icon;
   final VoidCallback onPressed;
   final bool isPrimary;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   const _DashboardAction({
     required this.label,
     required this.icon,
     required this.onPressed,
     this.isPrimary = false,
+    this.backgroundColor,
+    this.foregroundColor,
   });
 }

@@ -51,7 +51,7 @@ class _TotalOverviewState extends State<TotalOverview> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.purple.withValues(alpha: .15)),
       ),

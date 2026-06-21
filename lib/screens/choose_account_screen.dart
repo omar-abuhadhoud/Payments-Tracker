@@ -115,6 +115,8 @@ class ChooseAccountScreen extends StatefulWidget {
 }
 
 class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
+  static const Duration _accountReorderDuration = Duration(milliseconds: 450);
+
   // Store accounts with their balances
   List<Map<String, dynamic>> _accountsData = [];
   List<Map<String, dynamic>> _filteredAccountsData = [];
@@ -131,6 +133,10 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
   bool _isInitiallyLoading = true;
   bool _isSortAscending = true; // 🔽 Asc first by default
   bool _isTotalOverviewDrawerOpen = false;
+  int? _reorderFromIndex;
+  int? _reorderToIndex;
+  int? _reorderingAccountId;
+  int _reorderAnimationGeneration = 0;
 
   @override
   void initState() {
@@ -171,12 +177,33 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
 
   void _applySort() {
     _filteredAccountsData.sort((a, b) {
+      final accountA = a['account'] as AccountModel;
+      final accountB = b['account'] as AccountModel;
+
+      if (accountA.isPinned != accountB.isPinned) {
+        return accountA.isPinned ? -1 : 1;
+      }
+
+      if (accountA.isPinned) {
+        final pinComparison = accountB.pinOrder!.compareTo(accountA.pinOrder!);
+        if (pinComparison != 0) return pinComparison;
+        return _compareAccountsByNameAndId(accountA, accountB);
+      }
+
       final double balanceA = (a['balance'] as num).toDouble();
       final double balanceB = (b['balance'] as num).toDouble();
-      return _isSortAscending
+      final balanceComparison = _isSortAscending
           ? balanceA.compareTo(balanceB)
           : balanceB.compareTo(balanceA);
+      if (balanceComparison != 0) return balanceComparison;
+      return _compareAccountsByNameAndId(accountA, accountB);
     });
+  }
+
+  int _compareAccountsByNameAndId(AccountModel a, AccountModel b) {
+    final nameComparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    if (nameComparison != 0) return nameComparison;
+    return (a.id ?? 0).compareTo(b.id ?? 0);
   }
 
   Future<void> _loadAccounts() async {
@@ -192,6 +219,86 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
         _filterAccounts(); // this also applies sorting
       });
     }
+  }
+
+  Future<void> _toggleAccountPin(AccountModel account) async {
+    final accountId = account.id;
+    if (accountId == null) return;
+
+    final oldIndex = _filteredAccountsData.indexWhere(
+      (data) => (data['account'] as AccountModel).id == accountId,
+    );
+
+    if (account.isPinned) {
+      await AccountTable.unpin(accountId);
+    } else {
+      final pinned = await AccountTable.pin(accountId);
+      if (!pinned) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You can pin up to 3 accounts. Unpin one first.'),
+          ),
+        );
+        return;
+      }
+    }
+
+    final refreshedAccounts = await AccountTable.getAllAccountsWithBalances();
+    if (!mounted) return;
+
+    var newIndex = -1;
+    setState(() {
+      _accountsData = refreshedAccounts;
+      _filterAccounts();
+
+      newIndex = _filteredAccountsData.indexWhere(
+        (data) => (data['account'] as AccountModel).id == accountId,
+      );
+      if (oldIndex >= 0 && newIndex >= 0 && oldIndex != newIndex) {
+        _reorderFromIndex = oldIndex;
+        _reorderToIndex = newIndex;
+        _reorderingAccountId = accountId;
+        _reorderAnimationGeneration++;
+      }
+    });
+
+    if (!account.isPinned &&
+        newIndex >= 0 &&
+        oldIndex > newIndex &&
+        _accountsScrollController.hasClients) {
+      _accountsScrollController.animateTo(
+        _accountsScrollController.position.minScrollExtent,
+        duration: _accountReorderDuration,
+        curve: Curves.easeInOutCubic,
+      );
+    }
+
+    Future<void>.delayed(_accountReorderDuration, () {
+      if (!mounted || _reorderingAccountId != accountId) return;
+      setState(() {
+        _reorderFromIndex = null;
+        _reorderToIndex = null;
+        _reorderingAccountId = null;
+      });
+    });
+  }
+
+  double _initialReorderOffset(int index, int accountId, double cardExtent) {
+    final from = _reorderFromIndex;
+    final to = _reorderToIndex;
+    if (from == null || to == null) return 0;
+
+    if (accountId == _reorderingAccountId) {
+      return (from - to) * cardExtent;
+    }
+    if (from > to && index > to && index <= from) {
+      return -cardExtent;
+    }
+    if (from < to && index >= from && index < to) {
+      return cardExtent;
+    }
+    return 0;
   }
 
   void _onAccountTap(AccountModel account) {
@@ -280,6 +387,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                   final updatedAccount = AccountModel(
                     id: account.id,
                     name: newName,
+                    pinOrder: account.pinOrder,
                   );
                   await AccountTable.update(updatedAccount);
                   _loadAccounts();
@@ -688,103 +796,133 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                           ),
                           itemCount: _filteredAccountsData.length,
                           itemBuilder: (context, index) {
+                            final cardExtent =
+                                MediaQuery.sizeOf(context).width < 340
+                                ? 114.0
+                                : 126.0;
                             final accountData = _filteredAccountsData[index];
                             final AccountModel account =
                                 accountData['account'] as AccountModel;
                             final double balance =
                                 (accountData['balance'] as num).toDouble();
 
-                            return AccountCard(
-                              account: account,
-                              balance: balance,
-                              onTap: () => _onAccountTap(account),
-                              onEditPressed: () =>
-                                  _showEditAccountDialog(account),
-                              onDeletePressed: () async {
-                                _deleteConfirmController.clear();
-                                bool isDeleteButtonEnabled = false;
-
-                                final bool?
-                                confirmDelete = await showDialog<bool>(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (BuildContext context) {
-                                    return StatefulBuilder(
-                                      builder: (context, setStateDialog) {
-                                        return AlertDialog(
-                                          title: const Text('Confirm Delete'),
-                                          content: SingleChildScrollView(
-                                            child: ListBody(
-                                              children: <Widget>[
-                                                Text(
-                                                  'Are you sure you want to delete account "${account.name}" with all its transactions? This action is irreversible.',
-                                                ),
-                                                const Text(
-                                                  'Please type "I am sure" to confirm.',
-                                                ),
-                                                TextField(
-                                                  controller:
-                                                      _deleteConfirmController,
-                                                  decoration:
-                                                      const InputDecoration(
-                                                        hintText: 'I am sure',
-                                                      ),
-                                                  onChanged: (text) {
-                                                    setStateDialog(() {
-                                                      isDeleteButtonEnabled =
-                                                          text == 'I am sure';
-                                                    });
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          actions: <Widget>[
-                                            TextButton(
-                                              child: const Text('Cancel'),
-                                              onPressed: () => Navigator.of(
-                                                context,
-                                              ).pop(false),
-                                            ),
-                                            TextButton(
-                                              style: TextButton.styleFrom(
-                                                foregroundColor:
-                                                    AppColors.expenseRed,
-                                              ),
-                                              onPressed: isDeleteButtonEnabled
-                                                  ? () => Navigator.of(
-                                                      context,
-                                                    ).pop(true)
-                                                  : null,
-                                              child: const Text('Delete'),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  },
+                            return TweenAnimationBuilder<double>(
+                              key: ValueKey(
+                                'account-${account.id}-$_reorderAnimationGeneration',
+                              ),
+                              tween: Tween(
+                                begin: account.id == null
+                                    ? 0
+                                    : _initialReorderOffset(
+                                        index,
+                                        account.id!,
+                                        cardExtent,
+                                      ),
+                                end: 0,
+                              ),
+                              duration: _accountReorderDuration,
+                              curve: Curves.easeInOutCubic,
+                              builder: (context, offset, child) {
+                                return Transform.translate(
+                                  offset: Offset(0, offset),
+                                  child: child,
                                 );
-
-                                if (confirmDelete == true) {
-                                  if (account.id == null) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Cannot delete account without an ID.',
-                                          ),
-                                          backgroundColor: AppColors.expenseRed,
-                                        ),
-                                      );
-                                    }
-                                    return;
-                                  }
-                                  await AccountTable.delete(account.id!);
-                                  _loadAccounts();
-                                }
                               },
+                              child: AccountCard(
+                                account: account,
+                                balance: balance,
+                                isPinned: account.isPinned,
+                                onPinPressed: () => _toggleAccountPin(account),
+                                onTap: () => _onAccountTap(account),
+                                onEditPressed: () =>
+                                    _showEditAccountDialog(account),
+                                onDeletePressed: () async {
+                                  _deleteConfirmController.clear();
+                                  bool isDeleteButtonEnabled = false;
+
+                                  final bool?
+                                  confirmDelete = await showDialog<bool>(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (BuildContext context) {
+                                      return StatefulBuilder(
+                                        builder: (context, setStateDialog) {
+                                          return AlertDialog(
+                                            title: const Text('Confirm Delete'),
+                                            content: SingleChildScrollView(
+                                              child: ListBody(
+                                                children: <Widget>[
+                                                  Text(
+                                                    'Are you sure you want to delete account "${account.name}" with all its transactions? This action is irreversible.',
+                                                  ),
+                                                  const Text(
+                                                    'Please type "I am sure" to confirm.',
+                                                  ),
+                                                  TextField(
+                                                    controller:
+                                                        _deleteConfirmController,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          hintText: 'I am sure',
+                                                        ),
+                                                    onChanged: (text) {
+                                                      setStateDialog(() {
+                                                        isDeleteButtonEnabled =
+                                                            text == 'I am sure';
+                                                      });
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            actions: <Widget>[
+                                              TextButton(
+                                                child: const Text('Cancel'),
+                                                onPressed: () => Navigator.of(
+                                                  context,
+                                                ).pop(false),
+                                              ),
+                                              TextButton(
+                                                style: TextButton.styleFrom(
+                                                  foregroundColor:
+                                                      AppColors.expenseRed,
+                                                ),
+                                                onPressed: isDeleteButtonEnabled
+                                                    ? () => Navigator.of(
+                                                        context,
+                                                      ).pop(true)
+                                                    : null,
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                  );
+
+                                  if (confirmDelete == true) {
+                                    if (account.id == null) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Cannot delete account without an ID.',
+                                            ),
+                                            backgroundColor:
+                                                AppColors.expenseRed,
+                                          ),
+                                        );
+                                      }
+                                      return;
+                                    }
+                                    await AccountTable.delete(account.id!);
+                                    _loadAccounts();
+                                  }
+                                },
+                              ),
                             );
                           },
                         ),

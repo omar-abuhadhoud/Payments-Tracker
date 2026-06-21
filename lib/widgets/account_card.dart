@@ -10,6 +10,8 @@ class AccountCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEditPressed; // New callback for edit
   final VoidCallback onDeletePressed; // New callback for delete
+  final bool isPinned;
+  final VoidCallback onPinPressed;
 
   const AccountCard({
     super.key,
@@ -18,6 +20,8 @@ class AccountCard extends StatelessWidget {
     required this.onTap,
     required this.onEditPressed, // Make it required
     required this.onDeletePressed, // Make it required
+    required this.isPinned,
+    required this.onPinPressed,
   });
 
   @override
@@ -52,14 +56,25 @@ class AccountCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        account.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.purple,
+                      Tooltip(
+                        message: account.name,
+                        child: SizedBox(
+                          height: 52,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              account.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                height: 1.2,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.purple,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       Utility.handleNumberAppearanceForOverflow(
@@ -73,6 +88,18 @@ class AccountCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: isCompact ? 4 : 8),
+                IconButton(
+                  constraints: const BoxConstraints(
+                    minHeight: 40,
+                    minWidth: 40,
+                  ),
+                  icon: Icon(
+                    isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    color: AppColors.purple,
+                  ),
+                  onPressed: onPinPressed,
+                  tooltip: isPinned ? 'Unpin Account' : 'Pin Account',
+                ),
                 IconButton(
                   constraints: const BoxConstraints(
                     minHeight: 40,

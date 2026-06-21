@@ -13,14 +13,14 @@ class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'payment_tracker.db';
 
-
   static const String tableTransactions = 'transactions';
   static const String tableAccounts = 'accounts';
 
   DatabaseHelper._init();
 
   Future<Database> get database async {
-    if (_database != null && _database!.isOpen) return _database!; // Check if open
+    if (_database != null && _database!.isOpen)
+      return _database!; // Check if open
     _database = await _initDB(_databaseName);
     return _database!;
   }
@@ -54,18 +54,23 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (Database db, int version) async {
         // --- Added Logging ---
-        print('DatabaseHelper: onCreate called. Version: $version. Creating tables...');
+        print(
+          'DatabaseHelper: onCreate called. Version: $version. Creating tables...',
+        );
         await _createDB(db, version);
       },
       onUpgrade: (Database db, int oldVersion, int newVersion) async {
         // --- Added Logging ---
-        print('DatabaseHelper: onUpgrade called. Old Version: $oldVersion, New Version: $newVersion. Upgrading schema...');
+        print(
+          'DatabaseHelper: onUpgrade called. Old Version: $oldVersion, New Version: $newVersion. Upgrading schema...',
+        );
         await _onUpgrade(db, oldVersion, newVersion);
       },
-      onOpen: (Database db) async { // <-- Made onOpen async
+      onOpen: (Database db) async {
+        // <-- Made onOpen async
         // --- Added Logging ---
         print('DatabaseHelper: onOpen called. Database is open.');
         // Enable foreign key constraints
@@ -73,16 +78,15 @@ class DatabaseHelper {
         print('DatabaseHelper: Foreign key constraints ENABLED.');
       },
     );
-
   }
+
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-
     if (oldVersion < 3) {
-
       await db.execute('DROP TABLE IF EXISTS daily_closing_info');
-      print('DatabaseHelper: Upgraded to V3 - Dropped daily_closing_info table');
+      print(
+        'DatabaseHelper: Upgraded to V3 - Dropped daily_closing_info table',
+      );
     }
-
 
     if (oldVersion < 4) {
       // Create new accounts table
@@ -93,8 +97,9 @@ class DatabaseHelper {
         )
       ''');
 
-
-      await db.execute('ALTER TABLE $tableTransactions RENAME TO ${tableTransactions}_old');
+      await db.execute(
+        'ALTER TABLE $tableTransactions RENAME TO ${tableTransactions}_old',
+      );
 
       await db.execute('''
       CREATE TABLE $tableTransactions (
@@ -106,7 +111,6 @@ class DatabaseHelper {
       FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE Restrict
     )
   ''');
-
 
       final List<Map<String, Object?>> defaultAccountCheck = await db.query(
         'accounts',
@@ -123,20 +127,19 @@ class DatabaseHelper {
         defaultAccountId = defaultAccountCheck.first['id'] as int;
       }
 
-
       await db.execute('''
     INSERT INTO $tableTransactions (id, amount, note, createdAt, accountId)
     SELECT id, amount, note, createdAt, $defaultAccountId
     FROM ${tableTransactions}_old
   ''');
 
-
       await db.execute('DROP TABLE ${tableTransactions}_old');
     }
 
-
-    if(oldVersion < 5){
-      await db.execute('ALTER TABLE $tableTransactions RENAME TO ${tableTransactions}_old');
+    if (oldVersion < 5) {
+      await db.execute(
+        'ALTER TABLE $tableTransactions RENAME TO ${tableTransactions}_old',
+      );
 
       await db.execute('''
       CREATE TABLE $tableTransactions (
@@ -157,18 +160,23 @@ class DatabaseHelper {
 
       await db.execute('DROP TABLE ${tableTransactions}_old');
     }
+
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE $tableAccounts ADD COLUMN pinOrder INTEGER',
+      );
+      print('DatabaseHelper: Upgraded to V6 - Added account pin order');
+    }
   }
 
-
   Future _createDB(Database db, int version) async {
-
     await db.execute('''
       CREATE TABLE $tableAccounts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
+        name TEXT NOT NULL,
+        pinOrder INTEGER
       )
     ''');
-
 
     await db.execute('''
       CREATE TABLE $tableTransactions (
@@ -184,9 +192,6 @@ class DatabaseHelper {
     await db.insert(tableAccounts, {'name': 'Default Account'});
   }
 
-
-
-
   Future<void> resetDatabase() async {
     // Ensure database is open before reset
     final db = await instance.database;
@@ -195,27 +200,33 @@ class DatabaseHelper {
       _database = await _initDB(_databaseName); // Re-initialize if closed
     }
 
-
     final tables = await _database!.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_metadata';" // Exclude android_metadata
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_metadata';", // Exclude android_metadata
     );
 
     final batch = _database!.batch();
 
     for (var tableMap in tables) {
       final tableName = tableMap['name'] as String;
-      if (tableName == 'sqlite_sequence') continue; // sqlite_sequence is handled differently
+      if (tableName == 'sqlite_sequence')
+        continue; // sqlite_sequence is handled differently
 
       batch.delete(tableName);
       // For sqlite_sequence, we update the sequence for tables that were cleared
-      batch.rawUpdate("UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", [tableName]);
+      batch.rawUpdate("UPDATE sqlite_sequence SET seq = 0 WHERE name = ?", [
+        tableName,
+      ]);
     }
     // Also specifically reset for tables that might not have entries but exist
     // This part might be redundant if tables are always in sqlite_sequence after creation
-    batch.rawUpdate("DELETE FROM sqlite_sequence"); // Clear all sequence counts, they will be repopulated
+    batch.rawUpdate(
+      "DELETE FROM sqlite_sequence",
+    ); // Clear all sequence counts, they will be repopulated
 
     await batch.commit(noResult: true);
-    print('DatabaseHelper: resetDatabase EXECUTED. All user tables cleared, sequences reset.');
+    print(
+      'DatabaseHelper: resetDatabase EXECUTED. All user tables cleared, sequences reset.',
+    );
 
     // Re-create default account after reset if necessary
     final defaultAccountCheck = await _database!.query(
@@ -261,7 +272,9 @@ class DatabaseHelper {
       if (await backupFile.exists()) {
         await backupFile.copy(dbPath); // This overwrites the current DB
         print('DatabaseHelper: Backup restored successfully from $backupPath');
-        _database = await _initDB(_databaseName); // Re-initialize and open the restored DB
+        _database = await _initDB(
+          _databaseName,
+        ); // Re-initialize and open the restored DB
         return true;
       } else {
         print('DatabaseHelper: Backup file does not exist at $backupPath');

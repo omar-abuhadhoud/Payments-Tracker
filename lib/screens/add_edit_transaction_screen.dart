@@ -7,28 +7,38 @@ import 'package:payments_tracker_flutter/models/transaction_model.dart';
 import '../database/tables/transaction_table.dart';
 import '../widgets/basic/safe_scaffold.dart';
 
-class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+/// Formats the amount field as one or more numbers joined by " + ".
+/// Typing a space or "+" right after a digit inserts " + "; anywhere else it is ignored.
+class AmountExpressionInputFormatter extends TextInputFormatter {
   static const separator = ',';
+  static const plus = ' + ';
 
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    // If the new value is empty, just return it
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(text: '');
+  /// Sums the terms of an amount expression like "1,500.5 + 20".
+  /// Returns null if the text is empty or any term isn't a valid number.
+  static double? sum(String text) {
+    final terms = text
+        .replaceAll(separator, '')
+        .split('+')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (terms.isEmpty) return null;
+
+    double total = 0;
+    for (final term in terms) {
+      final value = double.tryParse(term);
+      if (value == null) return null;
+      total += value;
     }
+    return total;
+  }
 
-    // Get the clean number string without separators and with a single decimal point
-    String newText = newValue.text.replaceAll(separator, '');
-    if (!RegExp(r'^\d*\.?\d{0,2}$').hasMatch(newText)) {
-      return oldValue;
-    }
-
-    String beforeDecimal = newText;
+  static String _formatTerm(String term) {
+    String beforeDecimal = term;
     String? afterDecimal;
 
-    if (newText.contains('.')) {
-      final parts = newText.split('.');
+    if (term.contains('.')) {
+      final parts = term.split('.');
       beforeDecimal = parts[0];
       afterDecimal = parts.length > 1 ? parts[1] : null;
     }
@@ -40,12 +50,44 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
     );
 
     String formattedText = beforeDecimal;
-    if (newText.contains('.')) {
+    if (term.contains('.')) {
       formattedText += '.';
       if (afterDecimal != null) {
         formattedText += afterDecimal;
       }
     }
+    return formattedText;
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // Treat spaces like "+", then split into terms
+    final raw = newValue.text.replaceAll(separator, '').replaceAll(' ', '+');
+    final parts = raw.split('+');
+
+    bool trailingPlus = parts.length > 1 && parts.last.isEmpty;
+    // Drop empty terms so repeated or leading "+" are ignored
+    final terms = parts.where((p) => p.isNotEmpty).toList();
+
+    for (final term in terms) {
+      if (!RegExp(r'^\d*\.?\d{0,2}$').hasMatch(term)) {
+        return oldValue;
+      }
+    }
+
+    // Only allow a trailing "+" right after a number
+    if (terms.isEmpty || !RegExp(r'\d$').hasMatch(terms.last)) {
+      trailingPlus = false;
+    }
+    // Backspacing into " + " removes the whole separator
+    final isDeletion = newValue.text.length < oldValue.text.length;
+    if (isDeletion && oldValue.text.endsWith(plus) && !newValue.text.endsWith(plus)) {
+      trailingPlus = false;
+    }
+
+    String formattedText = terms.map(_formatTerm).join(plus);
+    if (trailingPlus) formattedText += plus;
 
     return newValue.copyWith(
         text: formattedText,
@@ -87,8 +129,11 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
       _selectedType = txn.amount >= 0 ? _TransactionType.income : _TransactionType.expense;
     } else {
       _currentDateTime = DateTime.now();
-      _selectedType = _TransactionType.expense; 
+      _selectedType = _TransactionType.expense;
     }
+
+    // Rebuild so the total under the amount field updates as the user types
+    _amountController.addListener(() => setState(() {}));
   }
 
   @override
@@ -99,7 +144,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
   }
 
   Future<void> _addTransaction() async {
-    final double unsignedAmount = double.parse(_amountController.text.replaceAll(',', ''));
+    final double unsignedAmount = AmountExpressionInputFormatter.sum(_amountController.text)!;
 
     final txn = TransactionModel(
       amount: _selectedType == _TransactionType.income ? unsignedAmount : -unsignedAmount,
@@ -123,7 +168,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
   }
 
   Future<void> _editTransaction() async {
-    final double unsignedAmount = double.parse(_amountController.text.replaceAll(',', ''));
+    final double unsignedAmount = AmountExpressionInputFormatter.sum(_amountController.text)!;
 
     final updated = TransactionModel(
       id: widget.transactionToEdit!.id,
@@ -154,9 +199,7 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
       );
       return;
     }
-    try {
-      double.parse(_amountController.text.replaceAll(',', ''));
-    } catch (_) {
+    if (AmountExpressionInputFormatter.sum(_amountController.text) == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid amount format')),
       );
@@ -178,6 +221,8 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
 
     final String buttonText = _isEditMode ? 'Save Changes' : 'Add';
     final Color iconColor = Theme.of(context).colorScheme.primary;
+
+    final double? amountTotal = AmountExpressionInputFormatter.sum(_amountController.text);
 
     return SafeScaffold(
       appBar: AppBar(
@@ -256,10 +301,14 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                   border: const OutlineInputBorder(),
                   prefixText: _selectedType == _TransactionType.income ? '+ ' : '- ',
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+                  helperText: amountTotal == null
+                      ? null
+                      : 'Total: ${NumberFormat('#,##0.00').format(amountTotal)}',
+                  helperStyle: const TextStyle(color: Colors.grey),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
                 inputFormatters: <TextInputFormatter>[
-                  ThousandsSeparatorInputFormatter(),
+                  AmountExpressionInputFormatter(),
                 ],
               ),
               const SizedBox(height: 24.0),

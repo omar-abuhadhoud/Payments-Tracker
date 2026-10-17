@@ -8,6 +8,7 @@ import 'package:payments_tracker_flutter/screens/daily_details_screen.dart';
 import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
 import 'package:payments_tracker_flutter/widgets/swipe_period_navigation.dart';
 
+import '../widgets/account_drawer.dart';
 import '../widgets/basic/safe_scaffold.dart';
 import '../widgets/monthly_or_daily_details_card.dart';
 import '../widgets/utility.dart';
@@ -727,6 +728,7 @@ class _MonthlySummaryScreenState extends State<MonthlySummaryScreen> {
   Widget build(BuildContext context) {
     return SafeScaffold(
       appBar: AppBar(title: const Text('Monthly Summary'), centerTitle: true),
+      drawer: const AccountDrawer(current: AccountSection.monthly),
       body: SwipePeriodNavigation(
         label: _formattedDisplayedMonth,
         isLoading: _isLoading,

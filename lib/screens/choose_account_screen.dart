@@ -7,7 +7,8 @@ import 'package:payments_tracker_flutter/database/tables/transaction_table.dart'
 import 'package:payments_tracker_flutter/global_variables/chosen_account.dart';
 import 'package:payments_tracker_flutter/models/account_model.dart';
 import 'package:payments_tracker_flutter/widgets/account_card.dart';
-import 'package:payments_tracker_flutter/screens/account_main_screen.dart';
+import 'package:payments_tracker_flutter/screens/add_edit_transaction_screen.dart';
+import 'package:payments_tracker_flutter/global_variables/app_route_observer.dart';
 import 'package:payments_tracker_flutter/database/database_helper.dart';
 import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
 
@@ -114,7 +115,8 @@ class ChooseAccountScreen extends StatefulWidget {
   State<ChooseAccountScreen> createState() => _ChooseAccountScreenState();
 }
 
-class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
+class _ChooseAccountScreenState extends State<ChooseAccountScreen>
+    with RouteAware {
   static const Duration _accountReorderDuration = Duration(milliseconds: 450);
 
   // Store accounts with their balances
@@ -146,7 +148,22 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) appRouteObserver.subscribe(this, route);
+  }
+
+  // Reload balances whenever the user comes back to this screen,
+  // since the drawer may swap pages before returning here.
+  @override
+  void didPopNext() {
+    _loadAccounts();
+  }
+
+  @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     _accountNameController.dispose();
     _editAccountNameController.dispose();
     _resetConfirmController.dispose();
@@ -301,14 +318,12 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
     return 0;
   }
 
-  void _onAccountTap(AccountModel account) {
+  void _openAddTransaction(AccountModel account) {
     ChosenAccount().account = account;
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AccountMainScreen()),
-    ).then((_) {
-      _loadAccounts();
-    });
+      MaterialPageRoute(builder: (context) => const AddEditTransactionScreen()),
+    );
   }
 
   Future<void> _showAddAccountDialog() async {
@@ -833,7 +848,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                                 balance: balance,
                                 isPinned: account.isPinned,
                                 onPinPressed: () => _toggleAccountPin(account),
-                                onTap: () => _onAccountTap(account),
+                                onTap: () => _openAddTransaction(account),
                                 onEditPressed: () =>
                                     _showEditAccountDialog(account),
                                 onDeletePressed: () async {

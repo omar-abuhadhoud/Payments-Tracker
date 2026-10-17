@@ -8,6 +8,7 @@ import 'package:payments_tracker_flutter/models/transaction_model.dart';
 import 'package:payments_tracker_flutter/database/tables/transaction_table.dart';
 import 'package:payments_tracker_flutter/widgets/swipe_period_navigation.dart';
 
+import '../widgets/account_drawer.dart';
 import '../widgets/basic/safe_scaffold.dart'; // Import AccountTable
 
 class _TransactionWithBalance {
@@ -279,6 +280,7 @@ class _TransactionsLogScreenState extends State<TransactionsLogScreen> {
 
     return SafeScaffold(
       appBar: AppBar(title: const Text('Transactions Log'), centerTitle: true),
+      drawer: const AccountDrawer(current: AccountSection.log),
       body: FutureBuilder<void>(
         future: _dataLoadingFuture,
         builder: (context, snapshot) {

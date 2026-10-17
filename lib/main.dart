@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:payments_tracker_flutter/screens/choose_account_screen.dart';
 import 'package:payments_tracker_flutter/global_variables/app_colors.dart';
+import 'package:payments_tracker_flutter/global_variables/app_route_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,6 +82,7 @@ class MyApp extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
       ),
+      navigatorObservers: [appRouteObserver],
       home: const ChooseAccountScreen(),
     );
   }

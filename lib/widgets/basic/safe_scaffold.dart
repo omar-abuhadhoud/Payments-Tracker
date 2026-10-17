@@ -12,8 +12,8 @@ class SafeScaffold extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final List<Widget>? persistentFooterButtons;
   final Color? backgroundColor;
-  final Drawer? drawer;
-  final Drawer? endDrawer;
+  final Widget? drawer;
+  final Widget? endDrawer;
   final bool extendBody; // e.g., if you have a translucent bottom bar
   final bool extendBodyBehindAppBar; // keep false in most cases
 

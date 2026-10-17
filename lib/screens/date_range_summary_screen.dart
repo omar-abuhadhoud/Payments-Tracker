@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../database/tables/transaction_table.dart';
 import '../global_variables/app_colors.dart';
 import '../global_variables/chosen_account.dart';
+import '../widgets/account_drawer.dart';
 import '../widgets/basic/safe_scaffold.dart';
 import '../widgets/utility.dart';
 
@@ -64,6 +65,7 @@ class _DateRangeSummaryScreenState extends State<DateRangeSummaryScreen> {
 
     return SafeScaffold(
       appBar: AppBar(title: const Text('Date Range Summary')),
+      drawer: const AccountDrawer(current: AccountSection.dateRange),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
         child: Column(

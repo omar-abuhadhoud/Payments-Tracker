@@ -5,6 +5,7 @@ import 'package:payments_tracker_flutter/global_variables/chosen_account.dart';
 import 'package:payments_tracker_flutter/models/transaction_model.dart';
 
 import '../database/tables/transaction_table.dart';
+import '../widgets/account_drawer.dart';
 import '../widgets/basic/safe_scaffold.dart';
 
 /// Formats the amount field as one or more numbers joined by " + ".
@@ -229,6 +230,8 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
         title: Text(appBarTitle),
         centerTitle: true,
       ),
+      // Editing is opened from the log, so it keeps its back button instead
+      drawer: _isEditMode ? null : const AccountDrawer(current: AccountSection.add),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(

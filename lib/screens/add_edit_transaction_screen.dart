@@ -144,6 +144,19 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
     super.dispose();
   }
 
+  // A "+" can only follow a number (same rule as typing space or "+")
+  bool get _canAppendPlus => RegExp(r'\d$').hasMatch(_amountController.text);
+
+  // Button version of typing "+", for numeric keyboards that have no "+" or space key
+  void _appendPlus() {
+    if (!_canAppendPlus) return;
+    final text = _amountController.text + AmountExpressionInputFormatter.plus;
+    _amountController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   Future<void> _addTransaction() async {
     final double unsignedAmount = AmountExpressionInputFormatter.sum(_amountController.text)!;
 
@@ -308,6 +321,11 @@ class _AddEditTransactionScreenState extends State<AddEditTransactionScreen> {
                       ? null
                       : 'Total: ${NumberFormat('#,##0.00').format(amountTotal)}',
                   helperStyle: const TextStyle(color: Colors.grey),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Add another amount',
+                    onPressed: _canAppendPlus ? _appendPlus : null,
+                  ),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: false),
                 inputFormatters: <TextInputFormatter>[
